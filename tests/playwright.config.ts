@@ -11,7 +11,7 @@ export default defineConfig({
     ['json', { outputFile: './test-results/results.json' }],
   ],
   use: {
-    baseURL: process.env.REACT_APP_BACKEND_URL || 'https://ardupilot-vision.preview.emergentagent.com',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     screenshot: 'on',
     trace: 'on-first-retry',
     headless: true,

@@ -198,10 +198,20 @@ const RouteHistory = ({ routes, onSelect, onDelete, loading }) => {
 };
 
 // Map Panel Component
-const MapPanel = ({ onSaveRoute, saveEnabled, setSaveEnabled }) => {
+const MapPanel = ({ onSaveRoute, saveEnabled, setSaveEnabled, selectedRoute }) => {
   const [route, setRoute] = useState(null);
   const [isSimulating, setIsSimulating] = useState(false);
   const [stats, setStats] = useState({ keyframes: 0, distance: 0 });
+
+  useEffect(() => {
+    if (selectedRoute) {
+      setRoute(selectedRoute);
+      setStats({
+        keyframes: selectedRoute.keyframes?.length || 0,
+        distance: selectedRoute.total_distance || 0
+      });
+    }
+  }, [selectedRoute]);
 
   const loadDemoRoute = async () => {
     try {
@@ -401,6 +411,7 @@ function App() {
   const [savedRoutes, setSavedRoutes] = useState([]);
   const [saveEnabled, setSaveEnabled] = useState(false);
   const [routesLoading, setRoutesLoading] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState(null);
 
   // Load documentation list
   useEffect(() => {
@@ -569,10 +580,11 @@ function App() {
       {/* Main Content */}
       <main>
         {activeTab === 'map' && (
-          <MapPanel 
-            onSaveRoute={handleSaveRoute} 
+          <MapPanel
+            onSaveRoute={handleSaveRoute}
             saveEnabled={saveEnabled}
             setSaveEnabled={setSaveEnabled}
+            selectedRoute={selectedRoute}
           />
         )}
 
@@ -592,7 +604,7 @@ function App() {
             </div>
             <RouteHistory 
               routes={savedRoutes} 
-              onSelect={(route) => { setActiveTab('map'); }}
+              onSelect={(route) => { setSelectedRoute(route); setActiveTab('map'); }}
               onDelete={handleDeleteRoute}
               loading={routesLoading}
             />
