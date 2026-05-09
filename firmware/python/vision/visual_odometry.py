@@ -133,10 +133,21 @@ class VisualOdometry:
                     self._current_altitude
                 )
                 
-                # Update pose
-                self._pose.x += dx
-                self._pose.y += dy
-                self._pose.yaw += dyaw
+                # Apply drift filter - ignore very small movements (noise)
+                # Threshold: 0.005m (~5mm) for position, 0.001 rad (~0.06°) for yaw
+                if abs(dx) < 0.005:
+                    dx = 0.0
+                if abs(dy) < 0.005:
+                    dy = 0.0
+                if abs(dyaw) < 0.001:
+                    dyaw = 0.0
+                
+                # Update pose only if there's meaningful movement
+                if abs(dx) > 0 or abs(dy) > 0 or abs(dyaw) > 0:
+                    self._pose.x += dx
+                    self._pose.y += dy
+                    self._pose.yaw += dyaw
+                    
                 self._pose.z = self._current_altitude
                 self._pose.timestamp = timestamp
                 self._pose.confidence = match_result.inlier_count / match_result.count

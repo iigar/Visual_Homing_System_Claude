@@ -5,13 +5,16 @@ Route Follower Module
 import cv2
 import numpy as np
 import logging
+import sys
 from typing import Optional, Tuple, List
 from dataclasses import dataclass
 from pathlib import Path
 import time
 
-from ..vision import FeatureDetector, FeatureMatcher, Features
-from .route_recorder import Route, Keyframe
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from vision import FeatureDetector, FeatureMatcher, Features
+from navigation.route_recorder import Route, Keyframe
 
 logger = logging.getLogger(__name__)
 

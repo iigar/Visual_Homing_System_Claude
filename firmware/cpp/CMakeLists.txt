@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(visual_homing VERSION 1.0)
+project(visual_homing VERSION 2.1)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -26,6 +26,8 @@ set(SOURCES
     src/visual_odometry.cpp
     src/route_memory.cpp
     src/mavlink_interface.cpp
+    src/optical_flow.cpp
+    src/lidar.cpp
 )
 
 # Executable

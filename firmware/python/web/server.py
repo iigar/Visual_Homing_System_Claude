@@ -30,11 +30,7 @@ HTML_TEMPLATE = '''
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visual Homing - Моніторинг</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', sans-serif;
             background: #0a0a0f;
@@ -42,228 +38,296 @@ HTML_TEMPLATE = '''
             min-height: 100vh;
         }
         .container {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 10px;
         }
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 0;
+            padding: 10px 0;
             border-bottom: 1px solid #2a2a35;
-            margin-bottom: 30px;
-        }
-        h1 {
-            color: #4ecdc4;
-            font-size: 24px;
-            font-weight: 600;
-        }
-        .status-badge {
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-        .status-idle { background: #2a2a35; color: #888; }
-        .status-recording { background: #ff4444; color: white; }
-        .status-returning { background: #44ff44; color: black; }
-        
-        .grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 30px;
-        }
-        
-        .video-panel {
-            background: #12121a;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid #2a2a35;
-        }
-        .video-panel img {
-            width: 100%;
-            display: block;
-        }
-        .video-header {
-            padding: 15px 20px;
-            border-bottom: 1px solid #2a2a35;
-            display: flex;
-            justify-content: space-between;
-        }
-        
-        .controls-panel {
-            background: #12121a;
-            border-radius: 12px;
-            padding: 25px;
-            border: 1px solid #2a2a35;
-        }
-        .control-group {
-            margin-bottom: 25px;
-        }
-        .control-group h3 {
-            color: #4ecdc4;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
             margin-bottom: 15px;
         }
+        h1 { color: #4ecdc4; font-size: 20px; font-weight: 600; }
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-idle { background: #2a2a35; color: #888; }
+        .status-recording { background: #ff4444; color: white; animation: pulse 1s infinite; }
+        .status-returning { background: #44ff44; color: black; animation: pulse 1s infinite; }
         
-        button {
-            width: 100%;
-            padding: 15px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-            margin-bottom: 10px;
-        }
-        .btn-record {
-            background: linear-gradient(135deg, #ff4444, #cc0000);
-            color: white;
-        }
-        .btn-return {
-            background: linear-gradient(135deg, #44ff44, #00cc00);
-            color: black;
-        }
-        .btn-stop {
-            background: linear-gradient(135deg, #666, #444);
-            color: white;
-        }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-        }
-        
-        .stats-grid {
+        .main-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
         }
-        .stat-box {
-            background: #1a1a25;
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .stat-value {
-            font-size: 24px;
-            font-weight: 600;
-            color: #4ecdc4;
-        }
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            text-transform: uppercase;
-            margin-top: 5px;
-        }
         
-        .telemetry {
-            margin-top: 20px;
-            font-family: monospace;
-            background: #0a0a0f;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 12px;
+        .left-column { display: flex; flex-direction: column; gap: 15px; }
+        .right-column { display: flex; flex-direction: column; gap: 15px; }
+        
+        /* Video Panel - Smaller */
+        .video-panel {
+            background: #12121a;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #2a2a35;
         }
-        .telemetry-row {
+        .video-panel img { width: 100%; max-height: 280px; object-fit: contain; display: block; }
+        .video-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid #2a2a35;
             display: flex;
             justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid #1a1a25;
+            font-size: 12px;
+        }
+        .fps-display { color: #4ecdc4; font-weight: 600; }
+        
+        /* 3D Mini Map */
+        .map-panel {
+            background: #12121a;
+            border-radius: 10px;
+            border: 1px solid #2a2a35;
+            flex: 1;
+            min-height: 250px;
+            position: relative;
+        }
+        .map-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid #2a2a35;
+            font-size: 12px;
+            color: #4ecdc4;
+        }
+        .map-canvas {
+            width: 100%;
+            height: calc(100% - 35px);
+            background: radial-gradient(circle at center, #1a1a25 0%, #0a0a0f 100%);
+        }
+        
+        /* Controls - Compact */
+        .controls-row {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-small {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-record { background: linear-gradient(135deg, #ff4444, #cc0000); color: white; }
+        .btn-stop { background: linear-gradient(135deg, #666, #444); color: white; }
+        .btn-return {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #44ff44, #00cc00);
+            color: black;
+            width: 100%;
+        }
+        .btn-small:hover, .btn-return:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 15px rgba(0,0,0,0.3);
+        }
+        
+        /* Stats - Compact (60% smaller) */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .stat-box {
+            background: #1a1a25;
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #2a2a35;
+        }
+        .stat-value { font-size: 16px; font-weight: 600; color: #4ecdc4; }
+        .stat-label { font-size: 9px; color: #666; text-transform: uppercase; margin-top: 2px; }
+        
+        /* Telemetry - Large (2x bigger) */
+        .telemetry-section {
+            background: #12121a;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #2a2a35;
+        }
+        .telemetry-title {
+            color: #4ecdc4;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .telem-box {
+            background: #1a1a25;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #2a2a35;
+        }
+        .telem-value {
+            font-size: 24px;
+            font-weight: 700;
+            font-family: 'Consolas', monospace;
+        }
+        .telem-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        .telem-pos { color: #4ecdc4; }
+        .telem-att { color: #ff9f43; }
+        .telem-status { color: #44ff44; }
+        .telem-warn { color: #ff4444; }
+        
+        /* Attitude indicators */
+        .attitude-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        /* Status row */
+        .status-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
         }
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.7; }
         }
-        .recording-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            background: #ff4444;
-            border-radius: 50%;
-            margin-right: 10px;
-            animation: pulse 1s infinite;
+        
+        /* Mobile responsive */
+        @media (max-width: 900px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .telemetry-grid { grid-template-columns: repeat(2, 1fr); }
+            .attitude-row { grid-template-columns: repeat(3, 1fr); }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🛩️ Visual Homing</h1>
+            <h1>Visual Homing</h1>
             <span class="status-badge" id="statusBadge">IDLE</span>
         </header>
         
-        <div class="grid">
-            <div class="video-panel">
-                <div class="video-header">
-                    <span>📹 Камера</span>
-                    <span id="fps">0 FPS</span>
-                </div>
-                <img src="/video_feed" id="videoFeed" alt="Camera Feed">
-            </div>
-            
-            <div class="controls-panel">
-                <div class="control-group">
-                    <h3>Керування</h3>
-                    <button class="btn-record" onclick="startRecording()">
-                        ● Почати запис
-                    </button>
-                    <button class="btn-return" onclick="startReturn()">
-                        ↩ Повернення
-                    </button>
-                    <button class="btn-stop" onclick="stopAll()">
-                        ■ Стоп
-                    </button>
+        <div class="main-grid">
+            <!-- Left Column: Video + Map -->
+            <div class="left-column">
+                <div class="video-panel">
+                    <div class="video-header">
+                        <span>Камера</span>
+                        <span class="fps-display" id="fps">-- FPS</span>
+                    </div>
+                    <img src="/video_feed" id="videoFeed" alt="Camera Feed">
                 </div>
                 
-                <div class="control-group">
-                    <h3>Статистика</h3>
-                    <div class="stats-grid">
-                        <div class="stat-box">
-                            <div class="stat-value" id="keyframes">0</div>
-                            <div class="stat-label">Keyframes</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value" id="altitude">0.0m</div>
-                            <div class="stat-label">Висота</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value" id="features">0</div>
-                            <div class="stat-label">Фічі</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value" id="progress">0%</div>
-                            <div class="stat-label">Прогрес</div>
-                        </div>
+                <div class="map-panel">
+                    <div class="map-header">3D Карта маршруту</div>
+                    <canvas id="mapCanvas" class="map-canvas"></canvas>
+                </div>
+            </div>
+            
+            <!-- Right Column: Controls + Telemetry -->
+            <div class="right-column">
+                <!-- Main Return Button -->
+                <button class="btn-return" onclick="startReturn()">
+                    ↩ ПОВЕРНЕННЯ (Smart RTL)
+                </button>
+                
+                <!-- Small Control Buttons -->
+                <div class="controls-row">
+                    <button class="btn-small btn-record" onclick="startRecording()">● ЗАПИС</button>
+                    <button class="btn-small btn-stop" onclick="stopAll()">■ СТОП</button>
+                </div>
+                
+                <!-- Stats - Compact -->
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="keyframes">0</div>
+                        <div class="stat-label">Keyframes</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="altitude">0.0m</div>
+                        <div class="stat-label">Висота</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="features">0</div>
+                        <div class="stat-label">Features</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="progress">0%</div>
+                        <div class="stat-label">Прогрес</div>
                     </div>
                 </div>
                 
-                <div class="control-group">
-                    <h3>Телеметрія</h3>
-                    <div class="telemetry">
-                        <div class="telemetry-row">
-                            <span>Position X:</span>
-                            <span id="posX">0.00 m</span>
+                <!-- Telemetry - Large -->
+                <div class="telemetry-section">
+                    <div class="telemetry-title">Телеметрія позиції</div>
+                    <div class="telemetry-grid">
+                        <div class="telem-box">
+                            <div class="telem-value telem-pos" id="posX">0.00</div>
+                            <div class="telem-label">Position X (m)</div>
                         </div>
-                        <div class="telemetry-row">
-                            <span>Position Y:</span>
-                            <span id="posY">0.00 m</span>
+                        <div class="telem-box">
+                            <div class="telem-value telem-pos" id="posY">0.00</div>
+                            <div class="telem-label">Position Y (m)</div>
                         </div>
-                        <div class="telemetry-row">
-                            <span>Heading:</span>
-                            <span id="heading">0.0°</span>
+                        <div class="telem-box">
+                            <div class="telem-value telem-pos" id="posZ">0.00</div>
+                            <div class="telem-label">Position Z (m)</div>
                         </div>
-                        <div class="telemetry-row">
-                            <span>MAVLink:</span>
-                            <span id="mavlink">Disconnected</span>
+                    </div>
+                    
+                    <div class="telemetry-title" style="margin-top: 15px;">Орієнтація дрона</div>
+                    <div class="attitude-row">
+                        <div class="telem-box">
+                            <div class="telem-value telem-att" id="roll">0.0°</div>
+                            <div class="telem-label">Roll</div>
                         </div>
-                        <div class="telemetry-row">
-                            <span>GPS:</span>
-                            <span id="gps">N/A</span>
+                        <div class="telem-box">
+                            <div class="telem-value telem-att" id="pitch">0.0°</div>
+                            <div class="telem-label">Pitch</div>
+                        </div>
+                        <div class="telem-box">
+                            <div class="telem-value telem-att" id="yaw">0.0°</div>
+                            <div class="telem-label">Yaw</div>
+                        </div>
+                    </div>
+                    
+                    <div class="telemetry-title" style="margin-top: 15px;">Статус системи</div>
+                    <div class="status-row">
+                        <div class="telem-box">
+                            <div class="telem-value" id="mavlink" style="font-size: 16px;">--</div>
+                            <div class="telem-label">MAVLink</div>
+                        </div>
+                        <div class="telem-box">
+                            <div class="telem-value" id="gps" style="font-size: 16px;">--</div>
+                            <div class="telem-label">GPS</div>
                         </div>
                     </div>
                 </div>
@@ -274,12 +338,26 @@ HTML_TEMPLATE = '''
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
         const socket = io();
+        let routePoints = [];
+        let currentPos = {x: 0, y: 0, z: 0};
+        let lastFrameTime = Date.now();
+        let frameCount = 0;
+        
+        // FPS calculation
+        setInterval(() => {
+            document.getElementById('fps').textContent = frameCount + ' FPS';
+            frameCount = 0;
+        }, 1000);
+        
+        // Count frames from video
+        const videoImg = document.getElementById('videoFeed');
+        videoImg.onload = () => { frameCount++; };
         
         socket.on('status', function(data) {
             // Update status badge
             const badge = document.getElementById('statusBadge');
-            badge.textContent = data.state.toUpperCase();
-            badge.className = 'status-badge status-' + data.state;
+            badge.textContent = data.state ? data.state.toUpperCase() : 'IDLE';
+            badge.className = 'status-badge status-' + (data.state || 'idle');
             
             // Update stats
             document.getElementById('keyframes').textContent = data.keyframes || 0;
@@ -287,15 +365,120 @@ HTML_TEMPLATE = '''
             document.getElementById('features').textContent = data.features || 0;
             document.getElementById('progress').textContent = (data.progress || 0).toFixed(0) + '%';
             
-            // Update telemetry
-            document.getElementById('posX').textContent = (data.pose?.x || 0).toFixed(2) + ' m';
-            document.getElementById('posY').textContent = (data.pose?.y || 0).toFixed(2) + ' m';
-            document.getElementById('heading').textContent = ((data.pose?.yaw || 0) * 180 / Math.PI).toFixed(1) + '°';
-            document.getElementById('mavlink').textContent = data.mavlink_connected ? 'Connected' : 'Disconnected';
-            document.getElementById('gps').textContent = data.gps_fix ? 'Fix: ' + data.gps_fix : 'N/A';
+            // Update position telemetry
+            const posX = data.pose?.x || 0;
+            const posY = data.pose?.y || 0;
+            const posZ = data.altitude || 0;
+            document.getElementById('posX').textContent = posX.toFixed(2);
+            document.getElementById('posY').textContent = posY.toFixed(2);
+            document.getElementById('posZ').textContent = posZ.toFixed(2);
+            
+            // Update attitude (roll, pitch, yaw) - from Flight Controller
+            const roll = (data.attitude?.roll || 0) * 180 / Math.PI;
+            const pitch = (data.attitude?.pitch || 0) * 180 / Math.PI;
+            const yaw = (data.attitude?.yaw || 0) * 180 / Math.PI;  // Use FC yaw, not VO
+            document.getElementById('roll').textContent = roll.toFixed(1) + '°';
+            document.getElementById('pitch').textContent = pitch.toFixed(1) + '°';
+            document.getElementById('yaw').textContent = yaw.toFixed(1) + '°';
+            
+            // Update status indicators
+            const mavlinkEl = document.getElementById('mavlink');
+            mavlinkEl.textContent = data.mavlink_connected ? 'OK' : 'OFFLINE';
+            mavlinkEl.className = 'telem-value ' + (data.mavlink_connected ? 'telem-status' : 'telem-warn');
+            
+            const gpsEl = document.getElementById('gps');
+            gpsEl.textContent = data.gps_fix ? data.gps_fix + ' SAT' : 'NO FIX';
+            gpsEl.className = 'telem-value ' + (data.gps_fix ? 'telem-status' : 'telem-warn');
+            
+            // Store position for map
+            currentPos = {x: posX, y: posY, z: posZ};
+            if (data.state === 'recording' && data.keyframes > routePoints.length) {
+                routePoints.push({...currentPos});
+            }
+            
+            drawMap();
         });
         
+        // 3D Mini Map drawing
+        function drawMap() {
+            const canvas = document.getElementById('mapCanvas');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height - 35;
+            
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const scale = 5; // pixels per meter
+            
+            // Clear
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid
+            ctx.strokeStyle = '#1a1a25';
+            ctx.lineWidth = 1;
+            for (let i = -10; i <= 10; i++) {
+                // Vertical lines
+                ctx.beginPath();
+                ctx.moveTo(cx + i * scale * 10, 0);
+                ctx.lineTo(cx + i * scale * 10, canvas.height);
+                ctx.stroke();
+                // Horizontal lines
+                ctx.beginPath();
+                ctx.moveTo(0, cy + i * scale * 10);
+                ctx.lineTo(canvas.width, cy + i * scale * 10);
+                ctx.stroke();
+            }
+            
+            // Draw home point
+            ctx.fillStyle = '#44ff44';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('H', cx, cy + 3);
+            
+            // Draw route
+            if (routePoints.length > 1) {
+                ctx.strokeStyle = '#4ecdc4';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(cx + routePoints[0].x * scale, cy - routePoints[0].y * scale);
+                for (let i = 1; i < routePoints.length; i++) {
+                    ctx.lineTo(cx + routePoints[i].x * scale, cy - routePoints[i].y * scale);
+                }
+                ctx.stroke();
+                
+                // Draw keyframe points
+                ctx.fillStyle = '#ff4444';
+                routePoints.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(cx + p.x * scale, cy - p.y * scale, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+            
+            // Draw current position (drone)
+            const droneX = cx + currentPos.x * scale;
+            const droneY = cy - currentPos.y * scale;
+            ctx.fillStyle = '#ffff00';
+            ctx.beginPath();
+            ctx.arc(droneX, droneY, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Distance from home
+            const dist = Math.sqrt(currentPos.x**2 + currentPos.y**2);
+            ctx.fillStyle = '#666';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('Dist: ' + dist.toFixed(1) + 'm', 10, canvas.height - 10);
+        }
+        
         function startRecording() {
+            routePoints = [];
             fetch('/api/recording/start', {method: 'POST'})
                 .then(r => r.json())
                 .then(d => console.log('Recording:', d));
@@ -312,6 +495,10 @@ HTML_TEMPLATE = '''
                 .then(r => r.json())
                 .then(d => console.log('Stopped:', d));
         }
+        
+        // Initial map draw
+        setTimeout(drawMap, 100);
+        window.addEventListener('resize', drawMap);
     </script>
 </body>
 </html>
@@ -402,7 +589,7 @@ def start_return():
     if not _system:
         return jsonify({'error': 'System not initialized'}), 500
     
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     route_id = data.get('route_id')
     
     if _system.start_return(route_id):
@@ -446,6 +633,17 @@ def status_broadcast_loop():
     while True:
         if _system:
             try:
+                # Get attitude from MAVLink if available
+                attitude = {'roll': 0, 'pitch': 0, 'yaw': 0}
+                if hasattr(_system, 'mavlink') and _system.mavlink.is_connected:
+                    if hasattr(_system.mavlink, '_attitude'):
+                        att = _system.mavlink._attitude
+                        attitude = {
+                            'roll': att.get('roll', 0),
+                            'pitch': att.get('pitch', 0),
+                            'yaw': att.get('yaw', 0)
+                        }
+                
                 status = {
                     'state': _system.state.value,
                     'keyframes': _system.route_recorder.keyframe_count,
@@ -456,7 +654,9 @@ def status_broadcast_loop():
                         'z': _system._current_pose.z,
                         'yaw': _system._current_pose.yaw
                     },
+                    'attitude': attitude,
                     'mavlink_connected': _system.mavlink.is_connected,
+                    'gps_fix': getattr(_system.mavlink, '_gps_satellites', 0) if _system.mavlink.is_connected else 0,
                     'progress': _system.route_follower.progress if _system.route_follower.is_active else 0,
                     'features': _system.vo._prev_features.count if _system.vo._prev_features else 0
                 }

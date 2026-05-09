@@ -43,7 +43,61 @@ except Exception as e:
 "
 ```
 
-### 1.3 Тест Feature Detection
+### 1.3 Тест MATEK 3901-L0X (Optical Flow)
+
+```bash
+cd ~/visual_homing
+python3 -c "
+import serial
+import struct
+import time
+
+ser = serial.Serial('/dev/serial1', 115200, timeout=2)
+time.sleep(1)
+
+print('Reading MATEK 3901-L0X data...')
+for i in range(5):
+    data = ser.read(64)
+    if len(data) > 0:
+        # Look for MSP header
+        for j in range(len(data) - 1):
+            if data[j] == ord('$') and data[j+1] == ord('X'):
+                print(f'  MSP packet found at offset {j}, size: {len(data)}')
+                break
+    time.sleep(0.2)
+
+ser.close()
+print('Test complete')
+"
+```
+
+### 1.4 Тест TF-Luna LiDAR
+
+```bash
+cd ~/visual_homing
+python3 -c "
+import serial
+import time
+
+ser = serial.Serial('/dev/serial2', 115200, timeout=2)
+time.sleep(1)
+
+print('Reading TF-Luna data...')
+for i in range(10):
+    data = ser.read(9)
+    if len(data) >= 9 and data[0] == 0x59 and data[1] == 0x59:
+        dist = data[2] | (data[3] << 8)
+        strength = data[4] | (data[5] << 8)
+        temp = (data[6] | (data[7] << 8)) / 100.0
+        print(f'  Distance: {dist}cm ({dist/100:.2f}m), Signal: {strength}, Temp: {temp:.1f}C')
+    time.sleep(0.1)
+
+ser.close()
+print('Test complete')
+"
+```
+
+### 1.5 Тест Feature Detection
 
 ```bash
 cd ~/visual_homing

@@ -63,6 +63,10 @@ class ArduPilotInterface:
         self._vehicle_state = VehicleState()
         self._state_lock = threading.Lock()
         self._callbacks: Dict[str, list] = {}
+        
+        # Store attitude separately for web interface
+        self._attitude = {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}
+        self._gps_satellites = 0
     
     def connect(self, timeout: float = 10.0) -> bool:
         """
@@ -94,6 +98,9 @@ class ArduPilotInterface:
             self._connected = True
             self._running = True
             
+            # Request data streams from FC
+            self._request_data_streams()
+            
             # Start receive thread
             self._recv_thread = threading.Thread(
                 target=self._receive_loop,
@@ -114,6 +121,40 @@ class ArduPilotInterface:
             logger.error(f"Connection failed: {e}")
             self._connected = False
             return False
+    
+    def _request_data_streams(self):
+        """Request data streams from flight controller"""
+        try:
+            # Request ATTITUDE stream (roll, pitch, yaw)
+            self._connection.mav.request_data_stream_send(
+                self._connection.target_system,
+                self._connection.target_component,
+                mavutil.mavlink.MAV_DATA_STREAM_EXTRA1,  # Attitude
+                10,  # 10 Hz
+                1    # Start
+            )
+            
+            # Request POSITION stream (altitude, etc)
+            self._connection.mav.request_data_stream_send(
+                self._connection.target_system,
+                self._connection.target_component,
+                mavutil.mavlink.MAV_DATA_STREAM_POSITION,
+                5,   # 5 Hz
+                1    # Start
+            )
+            
+            # Request EXTRA2 stream (VFR_HUD)
+            self._connection.mav.request_data_stream_send(
+                self._connection.target_system,
+                self._connection.target_component,
+                mavutil.mavlink.MAV_DATA_STREAM_EXTRA2,
+                5,   # 5 Hz
+                1    # Start
+            )
+            
+            logger.info("Requested data streams from FC")
+        except Exception as e:
+            logger.warning(f"Failed to request data streams: {e}")
     
     def disconnect(self):
         """Disconnect from flight controller"""
@@ -182,6 +223,15 @@ class ArduPilotInterface:
                 
             elif msg_type == 'GPS_RAW_INT':
                 self._vehicle_state.gps_fix = msg.fix_type
+                self._gps_satellites = msg.satellites_visible if hasattr(msg, 'satellites_visible') else 0
+                
+            elif msg_type == 'ATTITUDE':
+                # Store attitude for web interface
+                self._attitude = {
+                    'roll': msg.roll,
+                    'pitch': msg.pitch,
+                    'yaw': msg.yaw
+                }
                 
             elif msg_type == 'BATTERY_STATUS':
                 if msg.voltages[0] != 65535:
@@ -219,27 +269,14 @@ class ArduPilotInterface:
             return
         
         try:
-            # Calculate covariance based on confidence
-            # Lower confidence = higher covariance (less trust)
-            pos_cov = (1.0 - confidence) * 10.0 + 0.01
-            ang_cov = (1.0 - confidence) * 1.0 + 0.001
-            
-            # Covariance matrix (upper right triangle)
-            covariance = [
-                pos_cov, 0, 0, 0, 0, 0,
-                pos_cov, 0, 0, 0, 0,
-                pos_cov, 0, 0, 0,
-                ang_cov, 0, 0,
-                ang_cov, 0,
-                ang_cov
-            ]
-            
+            # Standard MAVLink VISION_POSITION_ESTIMATE message
+            # Parameters: usec, x, y, z, roll, pitch, yaw
+            # Note: covariance and reset_counter are optional in MAVLink v2
+            # and may not be supported by all pymavlink versions
             self._connection.mav.vision_position_estimate_send(
                 int(time.time() * 1e6),  # usec timestamp
                 x, y, z,
-                roll, pitch, yaw,
-                covariance,
-                0  # reset_counter
+                roll, pitch, yaw
             )
             
         except Exception as e:
@@ -260,14 +297,12 @@ class ArduPilotInterface:
             return
         
         try:
-            cov = (1.0 - confidence) * 5.0 + 0.01
-            covariance = [cov, 0, 0, cov, 0, cov]  # diagonal
-            
+            # Standard MAVLink VISION_SPEED_ESTIMATE message
+            # Parameters: usec, vx, vy, vz
+            # Note: covariance and reset_counter are optional in MAVLink v2
             self._connection.mav.vision_speed_estimate_send(
                 int(time.time() * 1e6),
-                vx, vy, vz,
-                covariance,
-                0
+                vx, vy, vz
             )
         except Exception as e:
             logger.error(f"Send vision speed error: {e}")

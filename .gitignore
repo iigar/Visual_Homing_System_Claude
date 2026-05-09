@@ -83,15 +83,35 @@ frontend/node_modules/.cache/default-development/2.pack
 frontend/node_modules/.cache/default-development/3.pack
 frontend/node_modules/.cache/default-development/0.pack
 frontend/node_modules/.cache/default-development/5.pack
+frontend/node_modules/.cache/default-development/6.pack
+frontend/node_modules/.cache/default-development/7.pack
+frontend/node_modules/.cache/default-development/8.pack
+frontend/node_modules/.cache/default-development/10.pack
+frontend/node_modules/.cache/default-development/12.pack
 -e 
-# Environment files
+# Environment and credential files
+.env
+.env.*
 *.env
-*.env.*
+credentials.json
+*.pem
+*.key
+.credentials
 -e 
-# Environment files
+# Environment and credential files
+.env
+.env.*
 *.env
-*.env.*
+credentials.json
+*.pem
+*.key
+.credentials
 -e 
-# Environment files
+# Environment and credential files
+.env
+.env.*
 *.env
-*.env.*
+credentials.json
+*.pem
+*.key
+.credentials

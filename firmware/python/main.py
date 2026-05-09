@@ -7,7 +7,12 @@ import logging
 import signal
 import sys
 import time
+import os
+from pathlib import Path
 from threading import Event
+
+# Add current directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
 
 from config import Config, CameraType, SystemState
 from camera import USBCapture, PiCamera
@@ -16,12 +21,14 @@ from navigation import RouteRecorder, RouteFollower
 from mavlink import ArduPilotInterface
 
 # Configure logging
+log_dir = Path('/home/pi/visual_homing/logs')
+log_dir.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('/home/pi/visual_homing/logs/visual_homing.log')
+        logging.FileHandler(log_dir / 'visual_homing.log')
     ]
 )
 logger = logging.getLogger('visual_homing')
@@ -164,14 +171,15 @@ class VisualHomingSystem:
         elif self.state == SystemState.RETURNING:
             self._handle_returning(frame)
             
-        # Send visual data to ArduPilot
-        if self.mavlink.is_connected and pose:
+        # Send visual data to ArduPilot - ALWAYS send position even without pose change
+        if self.mavlink.is_connected:
+            # Always send current position
             self.mavlink.send_vision_position(
-                x=pose.x,
-                y=pose.y,
+                x=self._current_pose.x,
+                y=self._current_pose.y,
                 z=self._current_altitude,
-                yaw=pose.yaw,
-                confidence=pose.confidence
+                yaw=self._current_pose.yaw,
+                confidence=self._current_pose.confidence if hasattr(self._current_pose, 'confidence') else 0.95
             )
             
             if velocity:
@@ -180,6 +188,22 @@ class VisualHomingSystem:
                     vy=velocity.vy,
                     vz=velocity.vz
                 )
+            
+            # Debug log every 5 seconds
+            if int(time.time()) % 5 == 0 and not hasattr(self, '_last_debug_time'):
+                logger.info(f"Sending VisOdom: x={self._current_pose.x:.2f}, y={self._current_pose.y:.2f}, z={self._current_altitude:.2f}, yaw={self._current_pose.yaw:.2f}, connected={self.mavlink.is_connected}")
+                self._last_debug_time = time.time()
+            elif int(time.time()) % 5 != 0:
+                if hasattr(self, '_last_debug_time'):
+                    delattr(self, '_last_debug_time')
+        else:
+            # Log connection issue
+            if int(time.time()) % 10 == 0 and not hasattr(self, '_last_warn_time'):
+                logger.warning("MAVLink not connected - cannot send VisOdom data")
+                self._last_warn_time = time.time()
+            elif int(time.time()) % 10 != 0:
+                if hasattr(self, '_last_warn_time'):
+                    delattr(self, '_last_warn_time')
     
     def _handle_recording(self, frame):
         """Handle recording state"""

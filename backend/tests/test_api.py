@@ -3,7 +3,7 @@ import requests
 import os
 
 # Get backend URL from environment or use public preview URL
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://ardupilot-vision.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://drone-return-home.preview.emergentagent.com').rstrip('/')
 
 
 class TestRootAPI:
@@ -256,3 +256,347 @@ class TestFirmware:
         # Should have some files
         total_files = len(data["python"]) + len(data["cpp"]) + len(data["scripts"]) + len(data["config"])
         assert total_files > 0, "Should have some firmware files"
+
+
+class TestSensors:
+    """Test sensor status endpoints (MATEK 3901-L0X Optical Flow + TF-Luna LiDAR)"""
+    
+    def test_get_sensor_status(self, api_client):
+        """Test GET /api/sensors/status returns sensor data"""
+        response = api_client.get(f"{BASE_URL}/api/sensors/status")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Check optical flow fields
+        assert "optical_flow_connected" in data
+        assert "optical_flow_quality" in data
+        assert "flow_x" in data
+        assert "flow_y" in data
+        
+        # Check LiDAR fields
+        assert "lidar_connected" in data
+        assert "lidar_distance_m" in data
+        assert "lidar_signal" in data
+
+    def test_post_sensor_status(self, api_client):
+        """Test POST /api/sensors/status updates sensor data"""
+        sensor_data = {
+            "optical_flow_connected": True,
+            "optical_flow_quality": 85,
+            "flow_x": 1.5,
+            "flow_y": -0.3,
+            "lidar_connected": True,
+            "lidar_distance_m": 2.5,
+            "lidar_signal": 200
+        }
+        
+        response = api_client.post(f"{BASE_URL}/api/sensors/status", json=sensor_data)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] == True
+        
+        # Verify with GET
+        get_response = api_client.get(f"{BASE_URL}/api/sensors/status")
+        updated_data = get_response.json()
+        assert updated_data["optical_flow_connected"] == True
+        assert updated_data["optical_flow_quality"] == 85
+        assert updated_data["lidar_connected"] == True
+        assert updated_data["lidar_distance_m"] == 2.5
+
+
+class TestSmartRTL:
+    """Test Smart RTL endpoints (hybrid navigation: IMU/Baro >50m, Optical Flow + Visual <50m)"""
+    
+    def test_get_smart_rtl_status(self, api_client):
+        """Test GET /api/smart-rtl/status returns status"""
+        response = api_client.get(f"{BASE_URL}/api/smart-rtl/status")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Check required fields
+        assert "active" in data
+        assert "phase" in data
+        assert "current_altitude" in data
+        assert "home_distance" in data
+        assert "return_progress" in data
+        assert "nav_source" in data
+        assert "target_altitude" in data
+
+    def test_post_smart_rtl_status(self, api_client):
+        """Test POST /api/smart-rtl/status updates status"""
+        rtl_data = {
+            "active": True,
+            "phase": "descending",
+            "current_altitude": 35.0,
+            "home_distance": 150.0,
+            "return_progress": 0.65,
+            "nav_source": "optical_flow",
+            "target_altitude": 10.0
+        }
+        
+        response = api_client.post(f"{BASE_URL}/api/smart-rtl/status", json=rtl_data)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] == True
+        
+        # Verify with GET
+        get_response = api_client.get(f"{BASE_URL}/api/smart-rtl/status")
+        updated_data = get_response.json()
+        assert updated_data["active"] == True
+        assert updated_data["phase"] == "descending"
+        assert updated_data["nav_source"] == "optical_flow"
+        assert updated_data["return_progress"] == 0.65
+
+    def test_get_smart_rtl_config(self, api_client):
+        """Test GET /api/smart-rtl/config returns configuration defaults"""
+        response = api_client.get(f"{BASE_URL}/api/smart-rtl/config")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Check expected config fields
+        assert "high_alt_threshold" in data
+        assert data["high_alt_threshold"] == 50.0  # 50m threshold for hybrid nav
+        
+        assert "precision_land_alt" in data
+        assert "descent_rate" in data
+        assert "high_alt_speed" in data
+        assert "low_alt_speed" in data
+        assert "flow_min_quality" in data
+        assert "visual_min_confidence" in data
+
+
+class TestDocumentationUpdated:
+    """Test updated documentation with 9 documents"""
+    
+    def test_docs_list_count(self, api_client):
+        """Test GET /api/docs/list returns 10 documents"""
+        response = api_client.get(f"{BASE_URL}/api/docs/list")
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert len(data) == 10, f"Expected 10 documents, got {len(data)}"
+        
+        # Verify expected documents exist
+        doc_names = [d["name"] for d in data]
+        expected_docs = [
+            "01_raspberry_pi_setup.md",
+            "02_wiring_diagrams.md",
+            "03_ardupilot_config.md",
+            "04_python_implementation.md",
+            "08_testing.md",
+            "09_sitl_testing.md"
+        ]
+        for expected in expected_docs:
+            assert expected in doc_names, f"Missing document: {expected}"
+
+
+    def test_get_sitl_doc(self, api_client):
+        """Test GET /api/docs/09_sitl_testing.md returns SITL documentation"""
+        response = api_client.get(f"{BASE_URL}/api/docs/09_sitl_testing.md")
+        assert response.status_code == 200
+        data = response.json()
+        
+        assert "name" in data
+        assert data["name"] == "09_sitl_testing.md"
+        assert "title" in data
+        assert "SITL" in data["title"]
+        assert "content" in data
+        assert "SITL" in data["content"]
+        assert "ArduPilot" in data["content"]
+
+
+class TestSettings:
+    """Test Settings CRUD endpoints (NEW: v2.2 feature)"""
+    
+    def test_get_settings_returns_defaults(self, api_client):
+        """Test GET /api/settings returns settings with expected fields"""
+        response = api_client.get(f"{BASE_URL}/api/settings")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Check camera settings
+        assert "camera_type" in data
+        assert "camera_device" in data
+        assert "camera_resolution_w" in data
+        assert "camera_resolution_h" in data
+        assert "camera_fps" in data
+        
+        # Check MAVLink settings
+        assert "mavlink_port" in data
+        assert "mavlink_baud" in data
+        
+        # Check Optical Flow settings
+        assert "flow_enabled" in data
+        assert "flow_port" in data
+        assert "flow_min_quality" in data
+        
+        # Check LiDAR settings
+        assert "lidar_enabled" in data
+        assert "lidar_port" in data
+        
+        # Check Smart RTL settings
+        assert "rtl_high_alt" in data
+        assert "rtl_precision_alt" in data
+        assert "rtl_descent_pct" in data
+        assert "rtl_descent_rate" in data
+        assert "rtl_high_speed" in data
+        assert "rtl_low_speed" in data
+        
+        # Check system settings
+        assert "web_port" in data
+        assert "autostart" in data
+        assert "stream_enabled" in data
+    
+    def test_post_settings_updates_config(self, api_client):
+        """Test POST /api/settings updates configuration"""
+        # Get current settings
+        current = api_client.get(f"{BASE_URL}/api/settings").json()
+        
+        # Modify some settings
+        modified = current.copy()
+        modified["camera_fps"] = 60
+        modified["flow_min_quality"] = 75
+        modified["rtl_high_alt"] = 60.0
+        
+        # Save settings
+        response = api_client.post(f"{BASE_URL}/api/settings", json=modified)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] == True
+        
+        # Verify settings were saved
+        verify_response = api_client.get(f"{BASE_URL}/api/settings")
+        verify_data = verify_response.json()
+        assert verify_data["camera_fps"] == 60
+        assert verify_data["flow_min_quality"] == 75
+        assert verify_data["rtl_high_alt"] == 60.0
+        
+        # Reset settings back to defaults
+        api_client.post(f"{BASE_URL}/api/settings/reset")
+    
+    def test_reset_settings_restores_defaults(self, api_client):
+        """Test POST /api/settings/reset resets to defaults"""
+        response = api_client.post(f"{BASE_URL}/api/settings/reset")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Check default values are restored
+        assert data["camera_type"] == "usb_capture"
+        assert data["camera_device"] == "/dev/video0"
+        assert data["camera_fps"] == 30
+        assert data["mavlink_baud"] == 115200
+        assert data["flow_min_quality"] == 50
+        assert data["rtl_high_alt"] == 50.0
+        assert data["rtl_precision_alt"] == 5.0
+
+
+class TestStreamStatus:
+    """Test Video Stream status endpoint (NEW: v2.2 feature)"""
+    
+    def test_stream_status_returns_info(self, api_client):
+        """Test GET /api/stream/status returns stream information"""
+        response = api_client.get(f"{BASE_URL}/api/stream/status")
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Check required fields
+        assert "available" in data
+        assert "message" in data
+        assert "url" in data
+        assert "type" in data
+        
+        # In preview environment, stream is not available
+        assert data["available"] == False
+        assert data["url"] == "/api/stream/video"
+        assert data["type"] == "mjpeg"
+
+
+class TestRouteExport:
+    """Test Route Export endpoints (NEW: v2.2 feature)"""
+    
+    def test_export_route_json(self, api_client):
+        """Test GET /api/routes/{id}/export/json returns JSON data"""
+        # First create a test route
+        test_route = {
+            "id": f"test_export_json_{int(__import__('time').time() * 1000)}",
+            "name": "TEST_Export_JSON",
+            "points": [
+                {"x": 0, "y": 0, "z": 5, "yaw": 0, "timestamp": 0, "is_keyframe": True},
+                {"x": 10, "y": 10, "z": 10, "yaw": 0.5, "timestamp": 1, "is_keyframe": False}
+            ],
+            "keyframes": [{"x": 0, "y": 0, "z": 5, "yaw": 0, "timestamp": 0, "is_keyframe": True}],
+            "total_distance": 14.14,
+            "created_at": "2026-02-28T00:00:00Z"
+        }
+        
+        # Create the route
+        create_response = api_client.post(f"{BASE_URL}/api/routes", json=test_route)
+        assert create_response.status_code == 200
+        
+        try:
+            # Export as JSON
+            export_response = api_client.get(f"{BASE_URL}/api/routes/{test_route['id']}/export/json")
+            assert export_response.status_code == 200
+            data = export_response.json()
+            
+            # Verify exported data matches
+            assert data["id"] == test_route["id"]
+            assert data["name"] == test_route["name"]
+            assert len(data["points"]) == 2
+            assert len(data["keyframes"]) == 1
+            assert data["total_distance"] == 14.14
+        finally:
+            # Cleanup
+            api_client.delete(f"{BASE_URL}/api/routes/{test_route['id']}")
+    
+    def test_export_route_kml(self, api_client):
+        """Test GET /api/routes/{id}/export/kml returns valid KML"""
+        # First create a test route
+        test_route = {
+            "id": f"test_export_kml_{int(__import__('time').time() * 1000)}",
+            "name": "TEST_Export_KML",
+            "points": [
+                {"x": 0, "y": 0, "z": 5, "yaw": 0, "timestamp": 0, "is_keyframe": True},
+                {"x": 10, "y": 10, "z": 10, "yaw": 0.5, "timestamp": 1, "is_keyframe": False}
+            ],
+            "keyframes": [{"x": 0, "y": 0, "z": 5, "yaw": 0, "timestamp": 0, "is_keyframe": True}],
+            "total_distance": 14.14,
+            "created_at": "2026-02-28T00:00:00Z"
+        }
+        
+        # Create the route
+        create_response = api_client.post(f"{BASE_URL}/api/routes", json=test_route)
+        assert create_response.status_code == 200
+        
+        try:
+            # Export as KML
+            export_response = api_client.get(f"{BASE_URL}/api/routes/{test_route['id']}/export/kml")
+            assert export_response.status_code == 200
+            
+            # Check content type is KML
+            content_type = export_response.headers.get("content-type", "")
+            assert "kml" in content_type.lower() or "xml" in content_type.lower()
+            
+            # Verify KML structure
+            kml_content = export_response.text
+            assert '<?xml version="1.0"' in kml_content
+            assert '<kml xmlns="http://www.opengis.net/kml/2.2">' in kml_content
+            assert f'<name>{test_route["name"]}</name>' in kml_content
+            assert '<coordinates>' in kml_content
+            assert '</coordinates>' in kml_content
+            assert '<LineString>' in kml_content
+        finally:
+            # Cleanup
+            api_client.delete(f"{BASE_URL}/api/routes/{test_route['id']}")
+    
+    def test_export_nonexistent_route_returns_error(self, api_client):
+        """Test export of non-existent route returns error"""
+        json_response = api_client.get(f"{BASE_URL}/api/routes/nonexistent_12345/export/json")
+        assert json_response.status_code == 200
+        json_data = json_response.json()
+        assert "error" in json_data
+        
+        kml_response = api_client.get(f"{BASE_URL}/api/routes/nonexistent_12345/export/kml")
+        assert kml_response.status_code == 200
+        kml_data = kml_response.json()
+        assert "error" in kml_data

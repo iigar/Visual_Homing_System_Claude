@@ -6,13 +6,16 @@ import cv2
 import numpy as np
 import json
 import os
+import sys
 import time
 import logging
 from typing import List, Optional, Dict
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from ..vision import FeatureDetector, Features, Pose
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from vision import FeatureDetector, Features, Pose
 
 logger = logging.getLogger(__name__)
 

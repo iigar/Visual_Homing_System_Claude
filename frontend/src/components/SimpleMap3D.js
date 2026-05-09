@@ -5,7 +5,7 @@ import axios from 'axios';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Pure Three.js 3D Map with improved visuals
-const SimpleMap3D = ({ route: externalRoute, isSimulating }) => {
+const SimpleMap3D = ({ route: externalRoute, isSimulating, speedMultiplier = 1.0, smartRTLMode = false, onTelemetryUpdate }) => {
   const containerRef = useRef(null);
   const rendererRef = useRef(null);
   const sceneRef = useRef(null);
@@ -15,6 +15,12 @@ const SimpleMap3D = ({ route: externalRoute, isSimulating }) => {
   const [route, setRoute] = useState(null);
   const progressRef = useRef(0);
   const clockRef = useRef(new THREE.Clock());
+  const speedRef = useRef(speedMultiplier);
+  const smartRTLRef = useRef(smartRTLMode);
+  const rtlPathRef = useRef(null);
+
+  useEffect(() => { speedRef.current = speedMultiplier; }, [speedMultiplier]);
+  useEffect(() => { smartRTLRef.current = smartRTLMode; }, [smartRTLMode]);
 
   // Use external route if provided
   useEffect(() => {
@@ -135,77 +141,186 @@ const SimpleMap3D = ({ route: externalRoute, isSimulating }) => {
 
     scene.add(homeGroup);
 
-    // Drone model - more detailed
+    // Drone model - detailed quadcopter
     const droneGroup = new THREE.Group();
     
-    // Central body - sleek design
-    const bodyGeo = new THREE.BoxGeometry(1.2, 0.3, 1.2);
+    // Central body - X-frame center plate
+    const bodyGeo = new THREE.BoxGeometry(1.8, 0.2, 1.8);
     const bodyMat = new THREE.MeshStandardMaterial({ 
-      color: 0x18181b, 
-      metalness: 0.9, 
-      roughness: 0.2 
+      color: 0xD3D3D3, 
+      metalness: 0.7, 
+      roughness: 0.25 
     });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
     droneGroup.add(body);
 
-    // Arms and motors
-    const armPositions = [[0.8, 0, 0.8], [-0.8, 0, 0.8], [0.8, 0, -0.8], [-0.8, 0, -0.8]];
+    // Top plate (FC mount)
+    const topPlateGeo = new THREE.BoxGeometry(1.2, 0.08, 1.2);
+    const topPlateMat = new THREE.MeshStandardMaterial({ color: 0xC0C0C0, metalness: 0.8, roughness: 0.2 });
+    const topPlate = new THREE.Mesh(topPlateGeo, topPlateMat);
+    topPlate.position.y = 0.25;
+    droneGroup.add(topPlate);
+
+    // Battery on top
+    const battGeo = new THREE.BoxGeometry(0.8, 0.25, 0.4);
+    const battMat = new THREE.MeshStandardMaterial({ color: 0xa0a0a0, metalness: 0.5, roughness: 0.4 });
+    const battery = new THREE.Mesh(battGeo, battMat);
+    battery.position.y = 0.45;
+    droneGroup.add(battery);
+
+    // Front direction indicator (LED strip)
+    const frontLedGeo = new THREE.BoxGeometry(0.6, 0.06, 0.06);
+    const frontLedMat = new THREE.MeshStandardMaterial({ 
+      color: 0xef4444, emissive: 0xef4444, emissiveIntensity: 0.8 
+    });
+    const frontLed = new THREE.Mesh(frontLedGeo, frontLedMat);
+    frontLed.position.set(0, 0.15, -0.95);
+    droneGroup.add(frontLed);
+
+    // Rear indicator (green)
+    const rearLedGeo = new THREE.BoxGeometry(0.6, 0.06, 0.06);
+    const rearLedMat = new THREE.MeshStandardMaterial({ 
+      color: 0x22c55e, emissive: 0x22c55e, emissiveIntensity: 0.8 
+    });
+    const rearLed = new THREE.Mesh(rearLedGeo, rearLedMat);
+    rearLed.position.set(0, 0.15, 0.95);
+    droneGroup.add(rearLed);
+
+    // Arms and motors (X-config quadcopter)
+    const armPositions = [
+      [1.6, 0, -1.6], [-1.6, 0, -1.6],  // Front-left, Front-right
+      [1.6, 0, 1.6],  [-1.6, 0, 1.6]     // Rear-left, Rear-right
+    ];
+    const armColors = [0xef4444, 0xef4444, 0x22c55e, 0x22c55e]; // front=red, rear=green
+
     armPositions.forEach((pos, i) => {
-      // Arm
-      const armGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.8);
-      const armMat = new THREE.MeshStandardMaterial({ 
-        color: 0x27272a,
-        metalness: 0.8,
-        roughness: 0.3
-      });
+      // Arm tube
+      const armLen = Math.sqrt(pos[0]*pos[0] + pos[2]*pos[2]) * 0.45;
+      const armGeo = new THREE.CylinderGeometry(0.08, 0.08, armLen);
+      const armMat = new THREE.MeshStandardMaterial({ color: 0xD3D3D3, metalness: 0.8, roughness: 0.3 });
       const arm = new THREE.Mesh(armGeo, armMat);
-      arm.position.set(pos[0] * 0.6, 0, pos[2] * 0.6);
-      arm.rotation.z = Math.PI / 4 * (pos[0] > 0 ? 1 : -1) * (pos[2] > 0 ? 1 : -1);
+      const angle = Math.atan2(pos[2], pos[0]);
+      arm.rotation.z = Math.PI / 2;
+      arm.rotation.x = -angle;
+      arm.position.set(pos[0] * 0.45, 0, pos[2] * 0.45);
       droneGroup.add(arm);
 
-      // Motor housing
-      const motorGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15);
+      // Motor housing (cylinder)
+      const motorGeo = new THREE.CylinderGeometry(0.22, 0.25, 0.25, 16);
       const motorMat = new THREE.MeshStandardMaterial({ 
-        color: 0x06b6d4,
-        emissive: 0x06b6d4,
-        emissiveIntensity: 0.3,
-        metalness: 0.9,
-        roughness: 0.1
+        color: 0xBBBBBB, metalness: 0.9, roughness: 0.1 
       });
       const motor = new THREE.Mesh(motorGeo, motorMat);
-      motor.position.set(pos[0], 0.2, pos[2]);
+      motor.position.set(pos[0], 0.15, pos[2]);
       droneGroup.add(motor);
 
-      // Propeller disc (glowing)
-      const propGeo = new THREE.CircleGeometry(0.4, 32);
-      const propMat = new THREE.MeshBasicMaterial({ 
-        color: 0x06b6d4,
-        transparent: true,
-        opacity: 0.2,
-        side: THREE.DoubleSide
+      // Motor bell top
+      const bellGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.1, 16);
+      const bellMat = new THREE.MeshStandardMaterial({ 
+        color: armColors[i], emissive: armColors[i], emissiveIntensity: 0.3, metalness: 0.9, roughness: 0.1 
       });
-      const prop = new THREE.Mesh(propGeo, propMat);
-      prop.position.set(pos[0], 0.3, pos[2]);
-      prop.rotation.x = -Math.PI / 2;
-      prop.name = `prop_${i}`;
-      droneGroup.add(prop);
+      const bell = new THREE.Mesh(bellGeo, bellMat);
+      bell.position.set(pos[0], 0.32, pos[2]);
+      droneGroup.add(bell);
+
+      // Propeller blades (2 blades per motor)
+      for (let b = 0; b < 2; b++) {
+        const bladeGeo = new THREE.BoxGeometry(1.4, 0.02, 0.12);
+        const bladeMat = new THREE.MeshStandardMaterial({ 
+          color: 0x06b6d4, transparent: true, opacity: 0.7, metalness: 0.3, roughness: 0.5
+        });
+        const blade = new THREE.Mesh(bladeGeo, bladeMat);
+        blade.position.set(pos[0], 0.4, pos[2]);
+        blade.rotation.y = b * Math.PI / 2 + (i * Math.PI / 4);
+        blade.name = `prop_${i}_${b}`;
+        droneGroup.add(blade);
+      }
+
+      // Propeller spin disc (motion blur effect)
+      const propDiscGeo = new THREE.CircleGeometry(0.7, 32);
+      const propDiscMat = new THREE.MeshBasicMaterial({ 
+        color: 0x06b6d4, transparent: true, opacity: 0.08, side: THREE.DoubleSide 
+      });
+      const propDisc = new THREE.Mesh(propDiscGeo, propDiscMat);
+      propDisc.position.set(pos[0], 0.4, pos[2]);
+      propDisc.rotation.x = -Math.PI / 2;
+      propDisc.name = `propdisc_${i}`;
+      droneGroup.add(propDisc);
+
+      // Landing leg
+      const legGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.6);
+      const legMat = new THREE.MeshStandardMaterial({ color: 0xD3D3D3, metalness: 0.6, roughness: 0.4 });
+      const leg = new THREE.Mesh(legGeo, legMat);
+      leg.position.set(pos[0] * 0.7, -0.4, pos[2] * 0.7);
+      droneGroup.add(leg);
+
+      // Landing foot
+      const footGeo = new THREE.BoxGeometry(0.3, 0.04, 0.06);
+      const footMat = new THREE.MeshStandardMaterial({ color: 0xBBBBBB, metalness: 0.5 });
+      const foot = new THREE.Mesh(footGeo, footMat);
+      foot.position.set(pos[0] * 0.7, -0.7, pos[2] * 0.7);
+      droneGroup.add(foot);
     });
     
-    // Camera gimbal
-    const camGeo = new THREE.SphereGeometry(0.15, 16, 16);
-    const camMat = new THREE.MeshStandardMaterial({ 
-      color: 0x06b6d4, 
-      emissive: 0x06b6d4, 
-      emissiveIntensity: 0.5 
-    });
-    const camIndicator = new THREE.Mesh(camGeo, camMat);
-    camIndicator.position.set(0.5, -0.2, 0);
-    droneGroup.add(camIndicator);
+    // Camera/gimbal underneath
+    const gimbalArmGeo = new THREE.BoxGeometry(0.08, 0.3, 0.08);
+    const gimbalArmMat = new THREE.MeshStandardMaterial({ color: 0xBBBBBB, metalness: 0.7 });
+    const gimbalArm = new THREE.Mesh(gimbalArmGeo, gimbalArmMat);
+    gimbalArm.position.set(0, -0.25, -0.3);
+    droneGroup.add(gimbalArm);
 
-    // Drone light
-    const droneLight = new THREE.PointLight(0x06b6d4, 2, 10);
-    droneLight.position.set(0, -0.5, 0);
-    droneGroup.add(droneLight);
+    const camBodyGeo = new THREE.BoxGeometry(0.35, 0.25, 0.3);
+    const camBodyMat = new THREE.MeshStandardMaterial({ color: 0xa0a0a0, metalness: 0.8, roughness: 0.2 });
+    const camBody = new THREE.Mesh(camBodyGeo, camBodyMat);
+    camBody.position.set(0, -0.45, -0.3);
+    droneGroup.add(camBody);
+
+    // Camera lens
+    const lensGeo = new THREE.CylinderGeometry(0.1, 0.08, 0.12, 16);
+    const lensMat = new THREE.MeshStandardMaterial({ 
+      color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 0.6, metalness: 0.95, roughness: 0.05 
+    });
+    const lens = new THREE.Mesh(lensGeo, lensMat);
+    lens.position.set(0, -0.45, -0.5);
+    lens.rotation.x = Math.PI / 2;
+    droneGroup.add(lens);
+
+    // GPS mast
+    const gpsStickGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.5);
+    const gpsStickMat = new THREE.MeshStandardMaterial({ color: 0x64748b });
+    const gpsStick = new THREE.Mesh(gpsStickGeo, gpsStickMat);
+    gpsStick.position.set(0, 0.7, 0.3);
+    droneGroup.add(gpsStick);
+
+    const gpsGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.06, 16);
+    const gpsMat = new THREE.MeshStandardMaterial({ 
+      color: 0x475569, emissive: 0x22c55e, emissiveIntensity: 0.1, metalness: 0.7 
+    });
+    const gps = new THREE.Mesh(gpsGeo, gpsMat);
+    gps.position.set(0, 0.97, 0.3);
+    droneGroup.add(gps);
+
+    // Optical Flow sensor underneath (MATEK 3901-L0X)
+    const flowGeo = new THREE.BoxGeometry(0.25, 0.1, 0.25);
+    const flowMat = new THREE.MeshStandardMaterial({ 
+      color: 0x7c3aed, emissive: 0x7c3aed, emissiveIntensity: 0.4, metalness: 0.8 
+    });
+    const flowSensor = new THREE.Mesh(flowGeo, flowMat);
+    flowSensor.position.set(0, -0.3, 0.2);
+    droneGroup.add(flowSensor);
+
+    // Drone navigation lights
+    const droneLightFront = new THREE.PointLight(0xef4444, 1.5, 8);
+    droneLightFront.position.set(0, -0.2, -1.6);
+    droneGroup.add(droneLightFront);
+
+    const droneLightRear = new THREE.PointLight(0x22c55e, 1.5, 8);
+    droneLightRear.position.set(0, -0.2, 1.6);
+    droneGroup.add(droneLightRear);
+
+    const droneLightBottom = new THREE.PointLight(0x06b6d4, 2, 12);
+    droneLightBottom.position.set(0, -0.8, 0);
+    droneGroup.add(droneLightBottom);
 
     droneGroup.position.set(0, 8, 0);
     scene.add(droneGroup);
@@ -280,11 +395,14 @@ const SimpleMap3D = ({ route: externalRoute, isSimulating }) => {
       // Drone hover animation
       if (droneRef.current) {
         droneRef.current.position.y += Math.sin(elapsed * 2) * 0.01;
+        // Subtle tilt for realism
+        droneRef.current.rotation.x = Math.sin(elapsed * 1.3) * 0.02;
+        droneRef.current.rotation.z = Math.cos(elapsed * 1.7) * 0.015;
         
-        // Rotate propellers
+        // Rotate propeller blades
         droneRef.current.children.forEach(child => {
           if (child.name && child.name.startsWith('prop_')) {
-            child.rotation.z += delta * 20;
+            child.rotation.y += delta * 25;
           }
         });
       }
@@ -417,38 +535,160 @@ const SimpleMap3D = ({ route: externalRoute, isSimulating }) => {
     }
   }, [route]);
 
-  // Handle simulation
+  // Handle simulation (normal + Smart RTL)
   useEffect(() => {
     if (!isSimulating || !route || !route.points) {
       progressRef.current = 0;
+      rtlPathRef.current = null;
       if (droneRef.current) {
         droneRef.current.position.set(0, 8, 0);
       }
+      if (onTelemetryUpdate) onTelemetryUpdate(null);
       return;
     }
 
+    // Generate Smart RTL return path if in RTL mode
+    if (smartRTLRef.current && !rtlPathRef.current) {
+      const pts = route.points;
+      const outPath = pts.map(p => ({ ...p }));
+      // Return path: reverse, initially at high altitude, then descend
+      const returnPath = [];
+      const highAlt = 40; // High altitude for RTL
+      const totalReturn = pts.length;
+      const descentStart = Math.floor(totalReturn * 0.5);
+      
+      for (let i = pts.length - 1; i >= 0; i--) {
+        const rIdx = pts.length - 1 - i;
+        const p = pts[i];
+        let alt;
+        if (rIdx < descentStart) {
+          alt = highAlt; // HIGH_ALT phase
+        } else {
+          const descentProgress = (rIdx - descentStart) / (totalReturn - descentStart);
+          alt = highAlt * (1 - descentProgress); // DESCENT + LOW_ALT
+          if (alt < 2) alt = Math.max(0.5, alt * (1 - descentProgress)); // PRECISION_LAND
+        }
+        returnPath.push({ x: p.x, y: p.y, z: Math.max(0.3, alt) });
+      }
+      rtlPathRef.current = { outPath, returnPath, totalLen: outPath.length + returnPath.length };
+    }
+
     let frameId;
-    const simulateStep = () => {
-      if (progressRef.current >= route.points.length - 1) {
+    let lastTime = performance.now();
+    
+    const simulateStep = (currentTime) => {
+      const dt = (currentTime - lastTime) / 1000;
+      lastTime = currentTime;
+      
+      const speed = speedRef.current * 0.15; // Base step scaled by slider
+      const isRTL = smartRTLRef.current && rtlPathRef.current;
+      
+      let points, totalLen, phase, progress;
+      
+      if (isRTL) {
+        const rtl = rtlPathRef.current;
+        totalLen = rtl.totalLen;
+        const idx = Math.floor(progressRef.current);
+        
+        if (idx < rtl.outPath.length) {
+          points = rtl.outPath;
+          phase = 'record';
+          progress = idx;
+        } else {
+          points = rtl.returnPath;
+          progress = idx - rtl.outPath.length;
+          const returnPct = progress / rtl.returnPath.length;
+          const alt = points[Math.min(progress, points.length - 1)]?.z || 0;
+          
+          if (alt > 30) phase = 'high_alt';
+          else if (alt > 10) phase = 'descent';
+          else if (alt > 3) phase = 'low_alt';
+          else phase = 'precision_land';
+        }
+      } else {
+        points = route.points;
+        totalLen = points.length;
+        phase = 'normal';
+        progress = Math.floor(progressRef.current);
+      }
+
+      // Loop or stop
+      if (progressRef.current >= totalLen - 1) {
         progressRef.current = 0;
+        // Return early - next frame will start clean
+        frameId = requestAnimationFrame(simulateStep);
+        return;
       }
       
-      const point = route.points[Math.floor(progressRef.current)];
+      // Safe access - re-check RTL path is still valid
+      let currentIdx, currentPoints;
+      if (isRTL && rtlPathRef.current) {
+        const rtl = rtlPathRef.current;
+        const rawIdx = Math.floor(progressRef.current);
+        if (rawIdx < rtl.outPath.length) {
+          currentIdx = rawIdx;
+          currentPoints = rtl.outPath;
+        } else {
+          currentIdx = rawIdx - rtl.outPath.length;
+          currentPoints = rtl.returnPath;
+        }
+      } else {
+        currentIdx = Math.floor(progressRef.current);
+        currentPoints = points;
+      }
+      
+      const point = currentPoints[Math.min(currentIdx, currentPoints.length - 1)];
+      const nextPoint = currentPoints[Math.min(currentIdx + 1, currentPoints.length - 1)];
+      
       if (droneRef.current && point) {
         droneRef.current.position.set(point.x, point.z, -point.y);
-        droneRef.current.rotation.y = point.yaw || 0;
+        
+        // Calculate yaw toward next point
+        if (nextPoint && (nextPoint.x !== point.x || nextPoint.y !== point.y)) {
+          const yaw = Math.atan2(nextPoint.x - point.x, -(nextPoint.y - point.y));
+          droneRef.current.rotation.y = yaw;
+        }
+
+        // Change bottom light color based on phase
+        const bottomLight = droneRef.current.children.find(c => c.isPointLight && c.position.y < -0.5);
+        if (bottomLight) {
+          const phaseColors = {
+            record: 0x06b6d4,
+            normal: 0x06b6d4,
+            high_alt: 0xfbbf24,
+            descent: 0xf97316,
+            low_alt: 0xa855f7,
+            precision_land: 0x22c55e,
+          };
+          bottomLight.color.setHex(phaseColors[phase] || 0x06b6d4);
+        }
+      }
+
+      // Calculate speed (approximate m/s)
+      const speedMs = point && nextPoint
+        ? Math.sqrt((nextPoint.x-point.x)**2 + (nextPoint.y-point.y)**2 + (nextPoint.z-point.z)**2) * speedRef.current * 5
+        : 0;
+
+      // Report telemetry to parent
+      if (onTelemetryUpdate && point) {
+        onTelemetryUpdate({
+          altitude: point.z?.toFixed(1) || '0',
+          speed: speedMs.toFixed(1),
+          phase,
+          progress: ((progressRef.current / totalLen) * 100).toFixed(0),
+        });
       }
       
-      progressRef.current += 0.3;
+      progressRef.current += speed * Math.max(dt * 60, 0.5); // Frame-rate independent
       frameId = requestAnimationFrame(simulateStep);
     };
     
-    simulateStep();
+    frameId = requestAnimationFrame(simulateStep);
     
     return () => {
       if (frameId) cancelAnimationFrame(frameId);
     };
-  }, [isSimulating, route]);
+  }, [isSimulating, route, smartRTLMode, onTelemetryUpdate]);
 
   return (
     <div 

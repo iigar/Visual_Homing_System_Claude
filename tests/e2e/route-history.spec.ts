@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { waitForAppReady, navigateToTab, waitFor3DCanvas } from '../fixtures/helpers';
 
 test.describe('Visual Homing - Route History & Save', () => {
-  const baseUrl = process.env.BASE_URL || 'https://ardupilot-vision.preview.emergentagent.com';
+  const baseUrl = process.env.BASE_URL || 'https://drone-return-home.preview.emergentagent.com';
   let createdRouteId: string | null = null;
 
   test.afterEach(async ({ request }) => {
@@ -184,5 +184,119 @@ test.describe('Visual Homing - Route History & Save', () => {
     const afterList = await routesAfter.json();
     const notFound = afterList.find((r: any) => r.id === testRoute.id);
     expect(notFound).toBeUndefined();
+  });
+
+  test('UI: Route export buttons visible on hover (NEW v2.2)', async ({ page, request }) => {
+    // Create a test route first
+    const testRoute = {
+      id: `test_export_ui_${Date.now()}`,
+      name: `TEST_Export_UI_${Date.now()}`,
+      points: [{ x: 0, y: 0, z: 5, yaw: 0, timestamp: 0, is_keyframe: true }],
+      keyframes: [{ x: 0, y: 0, z: 5, yaw: 0, timestamp: 0, is_keyframe: true }],
+      total_distance: 50.0,
+      created_at: new Date().toISOString()
+    };
+    await request.post(`${baseUrl}/api/routes`, { data: testRoute });
+    createdRouteId = testRoute.id;
+
+    // Navigate to history page
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await waitForAppReady(page);
+    await navigateToTab(page, 'tab-history');
+    
+    // Wait for routes to load
+    const routeHistory = page.getByTestId('route-history');
+    await expect(routeHistory).toBeVisible({ timeout: 10000 });
+    
+    // Find the route card containing our route name
+    const routeCard = page.locator(`h3:has-text("${testRoute.name}")`).first();
+    await expect(routeCard).toBeVisible();
+    
+    // Hover over the card to show export buttons
+    const cardContainer = routeCard.locator('..').locator('..');
+    await cardContainer.hover();
+    
+    // Check export JSON button is visible with correct data-testid
+    const exportJsonBtn = page.getByTestId(`export-json-${testRoute.id}`);
+    await expect(exportJsonBtn).toBeVisible({ timeout: 5000 });
+    
+    // Check export KML button is visible with correct data-testid
+    const exportKmlBtn = page.getByTestId(`export-kml-${testRoute.id}`);
+    await expect(exportKmlBtn).toBeVisible();
+  });
+
+  test('API: Export route as JSON via API (NEW v2.2)', async ({ request }) => {
+    // Create a test route first
+    const testRoute = {
+      id: `test_api_export_json_${Date.now()}`,
+      name: `TEST_API_Export_JSON_${Date.now()}`,
+      points: [
+        { x: 0, y: 0, z: 5, yaw: 0, timestamp: 0, is_keyframe: true },
+        { x: 10, y: 10, z: 10, yaw: 0.5, timestamp: 1, is_keyframe: false }
+      ],
+      keyframes: [{ x: 0, y: 0, z: 5, yaw: 0, timestamp: 0, is_keyframe: true }],
+      total_distance: 14.14,
+      created_at: new Date().toISOString()
+    };
+    
+    // Create route
+    await request.post(`${baseUrl}/api/routes`, { data: testRoute });
+    createdRouteId = testRoute.id;
+
+    try {
+      // Export as JSON
+      const response = await request.get(`${baseUrl}/api/routes/${testRoute.id}/export/json`);
+      expect(response.status()).toBe(200);
+      
+      const data = await response.json();
+      expect(data.id).toBe(testRoute.id);
+      expect(data.name).toBe(testRoute.name);
+      expect(data.points.length).toBe(2);
+      expect(data.keyframes.length).toBe(1);
+    } finally {
+      // Cleanup
+      await request.delete(`${baseUrl}/api/routes/${testRoute.id}`);
+      createdRouteId = null;
+    }
+  });
+
+  test('API: Export route as KML returns valid KML (NEW v2.2)', async ({ request }) => {
+    // Create a test route first
+    const testRoute = {
+      id: `test_api_export_kml_${Date.now()}`,
+      name: `TEST_API_Export_KML_${Date.now()}`,
+      points: [
+        { x: 0, y: 0, z: 5, yaw: 0, timestamp: 0, is_keyframe: true },
+        { x: 10, y: 10, z: 10, yaw: 0.5, timestamp: 1, is_keyframe: false }
+      ],
+      keyframes: [{ x: 0, y: 0, z: 5, yaw: 0, timestamp: 0, is_keyframe: true }],
+      total_distance: 14.14,
+      created_at: new Date().toISOString()
+    };
+    
+    // Create route
+    await request.post(`${baseUrl}/api/routes`, { data: testRoute });
+    createdRouteId = testRoute.id;
+
+    try {
+      // Export as KML
+      const response = await request.get(`${baseUrl}/api/routes/${testRoute.id}/export/kml`);
+      expect(response.status()).toBe(200);
+      
+      const kmlContent = await response.text();
+      
+      // Verify KML structure
+      expect(kmlContent).toContain('<?xml version="1.0"');
+      expect(kmlContent).toContain('<kml xmlns="http://www.opengis.net/kml/2.2">');
+      expect(kmlContent).toContain(`<name>${testRoute.name}</name>`);
+      expect(kmlContent).toContain('<coordinates>');
+      expect(kmlContent).toContain('</coordinates>');
+      expect(kmlContent).toContain('<LineString>');
+      expect(kmlContent).toContain('Visual Homing Route Export');
+    } finally {
+      // Cleanup
+      await request.delete(`${baseUrl}/api/routes/${testRoute.id}`);
+      createdRouteId = null;
+    }
   });
 });

@@ -40,6 +40,23 @@ body {
   min-height: 100vh;
 }
 
+/* Hide scrollbar for mobile nav */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Mobile touch targets */
+@media (max-width: 768px) {
+  .glass-panel-controls button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 /* Header */
 .header {
   background: var(--bg-secondary);
