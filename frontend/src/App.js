@@ -216,8 +216,12 @@ const RouteHistory = ({ routes, onSelect, onDelete, loading }) => {
 };
 
 // Map Panel Component
-const MapPanel = ({ onSaveRoute, saveEnabled, setSaveEnabled }) => {
+const MapPanel = ({ onSaveRoute, saveEnabled, setSaveEnabled, selectedRoute }) => {
   const [route, setRoute] = useState(null);
+
+  useEffect(() => {
+    if (selectedRoute) setRoute(selectedRoute);
+  }, [selectedRoute]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [smartRTLMode, setSmartRTLMode] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
@@ -925,6 +929,7 @@ function App() {
   const [savedRoutes, setSavedRoutes] = useState([]);
   const [saveEnabled, setSaveEnabled] = useState(false);
   const [routesLoading, setRoutesLoading] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState(null);
 
   // Load documentation list
   useEffect(() => {
@@ -1105,10 +1110,11 @@ function App() {
       {/* Main Content */}
       <main>
         {activeTab === 'map' && (
-          <MapPanel 
-            onSaveRoute={handleSaveRoute} 
+          <MapPanel
+            onSaveRoute={handleSaveRoute}
             saveEnabled={saveEnabled}
             setSaveEnabled={setSaveEnabled}
+            selectedRoute={selectedRoute}
           />
         )}
 
@@ -1128,7 +1134,7 @@ function App() {
             </div>
             <RouteHistory 
               routes={savedRoutes} 
-              onSelect={(route) => { setActiveTab('map'); }}
+              onSelect={(route) => { setSelectedRoute(route); setActiveTab('map'); }}
               onDelete={handleDeleteRoute}
               loading={routesLoading}
             />
