@@ -20,10 +20,8 @@
 
 ### Ключові обмеження
 ```yaml
-urls:
-  правильно: "*.preview.emergentagent.com"
-  неправильно: "*.emergent.host"
-  
+репо: "https://github.com/iigar/Visual_Homing_System_Claude"
+
 порти:
   pi_web: 5000
   mavlink_uart: /dev/serial0
@@ -107,11 +105,7 @@ key_params:
 
 ### Оновити прошивку
 ```bash
-cd ~ && \
-wget https://drone-return-home.preview.emergentagent.com/api/firmware/download/zip -O firmware.zip && \
-unzip -o firmware.zip -d visual_homing && \
-sudo systemctl restart visual-homing && \
-journalctl -u visual-homing -f
+cd ~/visual-homing && ./update.sh
 ```
 
 ### Перевірити статус

@@ -50,12 +50,10 @@ visual_homing/
 
 ## ⚠️ КРИТИЧНІ ПРАВИЛА
 
-### URL-адреси для завантаження
+### Репозиторій
 ```
-✅ ПРАВИЛЬНО: https://drone-return-home.preview.emergentagent.com
-❌ НЕПРАВИЛЬНО: https://optical-rtl.emergent.host (не існує!)
+https://github.com/iigar/Visual_Homing_System_Claude
 ```
-**Завжди використовуй `preview.emergentagent.com`!**
 
 ### Raspberry Pi
 - **Веб-інтерфейс Pi:** `http://visual-homing.local:5000`
@@ -131,11 +129,7 @@ WebSocket /socket.io        # Real-time телеметрія
 
 ### Оновити прошивку
 ```bash
-cd ~
-wget https://drone-return-home.preview.emergentagent.com/api/firmware/download/zip -O firmware.zip
-unzip -o firmware.zip -d visual_homing
-sudo systemctl restart visual-homing
-journalctl -u visual-homing -f
+cd ~/visual-homing && ./update.sh
 ```
 
 ### Перевірити MAVLink з'єднання
@@ -200,8 +194,7 @@ journalctl -u visual-homing -f
 
 ## 🔗 Корисні посилання
 
-- **Документація:** https://drone-return-home.preview.emergentagent.com/docs
-- **Firmware ZIP:** https://drone-return-home.preview.emergentagent.com/api/firmware/download/zip
+- **Репозиторій:** https://github.com/iigar/Visual_Homing_System_Claude
 - **Pi Interface:** http://visual-homing.local:5000
 - **ArduPilot Wiki:** https://ardupilot.org/copter/docs/common-external-position-estimation.html
 
