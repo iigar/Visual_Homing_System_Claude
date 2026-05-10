@@ -732,14 +732,20 @@ class ConnectionManager:
         self.active_connections.append(websocket)
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        # B2: safe remove — .remove() raises ValueError if already gone
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
 
     async def broadcast(self, data: dict):
+        # B1: collect failed connections and remove after iteration
+        dead = []
         for conn in self.active_connections:
             try:
                 await conn.send_json(data)
             except Exception:
-                pass
+                dead.append(conn)
+        for conn in dead:
+            self.disconnect(conn)
 
 ws_manager = ConnectionManager()
 
@@ -762,7 +768,11 @@ async def websocket_telemetry(websocket: WebSocket):
             # Also listen for incoming commands
             try:
                 msg = await asyncio.wait_for(websocket.receive_text(), timeout=0.5)
-                cmd = json.loads(msg)
+                # B3: bad JSON must not disconnect the client
+                try:
+                    cmd = json.loads(msg)
+                except json.JSONDecodeError:
+                    continue
                 if cmd.get("type") == "update_sensors":
                     _update_sensor_status(cmd.get("data", {}))
                 elif cmd.get("type") == "update_rtl":
@@ -776,12 +786,19 @@ async def websocket_telemetry(websocket: WebSocket):
 
 
 def _update_sensor_status(data):
+    # B4: ValidationError from bad Pi data must not crash the WS handler
     global _sensor_status
-    _sensor_status = SensorStatus(**data)
+    try:
+        _sensor_status = SensorStatus(**data)
+    except Exception as e:
+        logging.warning(f"Invalid sensor data from Pi: {e}")
 
 def _update_rtl_status(data):
     global _smart_rtl_status
-    _smart_rtl_status = SmartRTLStatus(**data)
+    try:
+        _smart_rtl_status = SmartRTLStatus(**data)
+    except Exception as e:
+        logging.warning(f"Invalid RTL data from Pi: {e}")
 
 
 # Status endpoints (original)
