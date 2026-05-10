@@ -48,13 +48,15 @@ async def startup_db_client():
     """Initialize MongoDB connection on startup"""
     global client, db
     try:
-        client = AsyncIOMotorClient(mongo_url)
+        client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=2000)
         db = client[db_name]
         # Test connection
         await client.admin.command('ping')
         logging.info(f"Connected to MongoDB: {db_name}")
     except Exception as e:
-        logging.warning(f"MongoDB connection warning: {e}. Some features may be unavailable.")
+        logging.warning(f"MongoDB connection warning: {e}. Running in no-DB mode.")
+        client = None
+        db = None
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -356,6 +358,7 @@ class SmartRTLStatus(BaseModel):
 
 # In-memory storage for demo (in real system - from Pi via WebSocket)
 _demo_routes = {}
+_in_memory_settings = None
 _current_position = DronePosition(x=0, y=0, z=5, yaw=0, mode="IDLE")
 _sensor_status = SensorStatus()
 _smart_rtl_status = SmartRTLStatus()
@@ -364,7 +367,7 @@ _smart_rtl_status = SmartRTLStatus()
 async def list_routes():
     """List all saved routes"""
     if db is None:
-        return []
+        return list(_demo_routes.values())
     try:
         routes = await db.routes.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
         return routes
@@ -376,7 +379,9 @@ async def list_routes():
 async def get_route(route_id: str):
     """Get route by ID"""
     if db is None:
-        return {"error": "Database not available"}
+        if route_id in _demo_routes:
+            return _demo_routes[route_id]
+        return {"error": "Route not found"}
     try:
         route = await db.routes.find_one({"id": route_id}, {"_id": 0})
         if route:
@@ -390,7 +395,8 @@ async def get_route(route_id: str):
 async def create_route(route: FlightRoute):
     """Save a new route"""
     if db is None:
-        return {"success": False, "error": "Database not available"}
+        _demo_routes[route.id] = route.model_dump()
+        return {"success": True, "id": route.id}
     try:
         doc = route.model_dump()
         await db.routes.insert_one(doc)
@@ -403,7 +409,10 @@ async def create_route(route: FlightRoute):
 async def delete_route(route_id: str):
     """Delete a route by ID"""
     if db is None:
-        return {"error": "Database not available"}
+        if route_id in _demo_routes:
+            del _demo_routes[route_id]
+            return {"success": True, "message": "Route deleted"}
+        return {"error": "Route not found"}
     try:
         result = await db.routes.delete_one({"id": route_id})
         if result.deleted_count > 0:
@@ -591,7 +600,7 @@ class SystemSettings(BaseModel):
 async def get_settings():
     """Get system settings from DB or return defaults"""
     if db is None:
-        return SystemSettings().model_dump()
+        return _in_memory_settings if _in_memory_settings is not None else SystemSettings().model_dump()
     try:
         doc = await db.settings.find_one({"_id": "system"}, {"_id": 0})
         if doc:
@@ -604,8 +613,10 @@ async def get_settings():
 @api_router.post("/settings")
 async def save_settings(settings: SystemSettings):
     """Save system settings to DB"""
+    global _in_memory_settings
     if db is None:
-        return {"success": False, "error": "Database not available"}
+        _in_memory_settings = settings.model_dump()
+        return {"success": True}
     try:
         doc = settings.model_dump()
         await db.settings.update_one(
@@ -621,7 +632,9 @@ async def save_settings(settings: SystemSettings):
 @api_router.post("/settings/reset")
 async def reset_settings():
     """Reset settings to defaults"""
+    global _in_memory_settings
     if db is None:
+        _in_memory_settings = None
         return SystemSettings().model_dump()
     try:
         await db.settings.delete_one({"_id": "system"})
@@ -636,7 +649,9 @@ async def reset_settings():
 async def export_route_json(route_id: str):
     """Export route as JSON file"""
     if db is None:
-        return {"error": "Database not available"}
+        if route_id in _demo_routes:
+            return _demo_routes[route_id]
+        return {"error": "Route not found"}
     try:
         route = await db.routes.find_one({"id": route_id}, {"_id": 0})
         if not route:
@@ -649,26 +664,32 @@ async def export_route_json(route_id: str):
 @api_router.get("/routes/{route_id}/export/kml")
 async def export_route_kml(route_id: str):
     """Export route as KML for Google Earth"""
+    route = None
     if db is None:
-        return {"error": "Database not available"}
-    try:
-        route = await db.routes.find_one({"id": route_id}, {"_id": 0})
+        if route_id in _demo_routes:
+            route = _demo_routes[route_id]
+        else:
+            return {"error": "Route not found"}
+    else:
+        try:
+            route = await db.routes.find_one({"id": route_id}, {"_id": 0})
+        except Exception as e:
+            logging.warning(f"Failed to export route KML: {e}")
+            return {"error": "Database error"}
         if not route:
             return {"error": "Route not found"}
 
-        name = route.get("name", "Route")
-        points = route.get("points", [])
+    name = route.get("name", "Route")
+    points = route.get("points", [])
 
-        # Build KML with coordinates
-        coords_str = ""
-        for p in points:
-            # KML uses lon,lat,alt — we use x as lon offset, y as lat offset, z as alt
-            lon = 30.5234 + p.get("x", 0) * 0.00001  # Kyiv longitude + offset
-            lat = 50.4501 + p.get("y", 0) * 0.00001   # Kyiv latitude + offset
-            alt = p.get("z", 0)
-            coords_str += f"          {lon},{lat},{alt}\n"
+    coords_str = ""
+    for p in points:
+        lon = 30.5234 + p.get("x", 0) * 0.00001
+        lat = 50.4501 + p.get("y", 0) * 0.00001
+        alt = p.get("z", 0)
+        coords_str += f"          {lon},{lat},{alt}\n"
 
-        kml = f"""<?xml version="1.0" encoding="UTF-8"?>
+    kml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>{name}</name>
@@ -691,22 +712,19 @@ async def export_route_kml(route_id: str):
   </Document>
 </kml>"""
 
-        return StreamingResponse(
-            iter([kml]),
-            media_type="application/vnd.google-earth.kml+xml",
-            headers={"Content-Disposition": f"attachment; filename={name}.kml"}
-        )
-    except Exception as e:
-        logging.warning(f"Failed to export route KML: {e}")
-        return {"error": "Database error"}
+    return StreamingResponse(
+        iter([kml]),
+        media_type="application/vnd.google-earth.kml+xml",
+        headers={"Content-Disposition": f"attachment; filename={name}.kml"}
+    )
 
 
 # ===== Video Stream =====
 @api_router.get("/stream/status")
 async def stream_status():
     """Check video stream availability and return configured URL"""
-    stream_url = "http://192.168.213.234:5000/"
-    stream_enabled = True
+    stream_url = "/api/stream/video"
+    stream_enabled = False
     if db is not None:
         try:
             doc = await db.settings.find_one({"_id": "system"}, {"_id": 0})
@@ -718,7 +736,8 @@ async def stream_status():
     return {
         "available": stream_enabled,
         "url": stream_url,
-        "type": "mjpeg"
+        "type": "mjpeg",
+        "message": "Stream available" if stream_enabled else "Stream not available"
     }
 
 
