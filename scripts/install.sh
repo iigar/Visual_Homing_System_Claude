@@ -118,8 +118,8 @@ if [ -f "$SCRIPT_DIR/firmware/python/main.py" ]; then
 else
   # Download from API
   log "Завантаження прошивки з сервера..."
-  FIRMWARE_URL="https://drone-return-home.preview.emergentagent.com/api/firmware/download/zip"
-  
+  FIRMWARE_URL="https://github.com/iigar/Visual_Homing_System_Claude/archive/refs/heads/main.zip"
+
   cd /tmp
   if wget -q "$FIRMWARE_URL" -O firmware.zip 2>/dev/null; then
     unzip -o -q firmware.zip -d "$INSTALL_DIR/"

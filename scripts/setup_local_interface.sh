@@ -47,7 +47,7 @@ if [ ! -f "package.json" ]; then
     echo "📥 Downloading interface..."
     
     # Download from preview URL
-    wget https://drone-return-home.preview.emergentagent.com/api/firmware/download/zip -O visual_homing.zip
+    wget https://github.com/iigar/Visual_Homing_System_Claude/archive/refs/heads/main.zip -O visual_homing.zip
     unzip -o visual_homing.zip
     
     # Copy frontend if exists

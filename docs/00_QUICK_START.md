@@ -257,7 +257,7 @@ pip install pymavlink pyserial flask flask-cors flask-socketio
 
 ```bash
 cd ~
-wget https://drone-return-home.preview.emergentagent.com/api/firmware/download/zip -O firmware.zip
+git clone https://github.com/iigar/Visual_Homing_System_Claude.git ~/visual-homing && cd ~/visual-homing && ./setup.sh
 unzip -o firmware.zip -d visual_homing
 ```
 
@@ -561,7 +561,7 @@ sudo fuser -k 5000/tcp
 
 ## 📞 Підтримка
 
-- **Документація:** https://drone-return-home.preview.emergentagent.com
+- **Документація:** https://github.com/iigar/Visual_Homing_System_Claude
 
 ---
 

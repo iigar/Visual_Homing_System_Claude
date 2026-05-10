@@ -54,7 +54,7 @@
 ```bash
 # На Raspberry Pi (через SSH):
 cd ~
-wget https://drone-return-home.preview.emergentagent.com/api/firmware/download/zip -O firmware.zip
+git clone https://github.com/iigar/Visual_Homing_System_Claude.git ~/visual-homing && cd ~/visual-homing && ./setup.sh
 unzip -o firmware.zip -d visual_homing
 ```
 
@@ -62,7 +62,7 @@ unzip -o firmware.zip -d visual_homing
 
 ```bash
 cd ~
-wget https://drone-return-home.preview.emergentagent.com/api/firmware/download/zip -O firmware.zip
+git clone https://github.com/iigar/Visual_Homing_System_Claude.git ~/visual-homing && cd ~/visual-homing && ./setup.sh
 unzip firmware.zip -d visual_homing
 cd visual_homing
 ```
@@ -93,8 +93,8 @@ http://<IP_адреса_Pi>:5000
 
 ## Preview URL (актуальний)
 
-- **Веб-інтерфейс:** https://drone-return-home.preview.emergentagent.com
-- **API:** https://drone-return-home.preview.emergentagent.com/api
+- **Веб-інтерфейс:** https://github.com/iigar/Visual_Homing_System_Claude
+- **API:** https://github.com/iigar/Visual_Homing_System_Claude/api
 
 ## Ліцензія
 

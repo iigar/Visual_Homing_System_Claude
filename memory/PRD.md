@@ -16,7 +16,7 @@
 ## Реліз-ноти
 
 ### v2.2.3 (02.03.2026) — URL Consistency Fix
-- **URL Fix:** Виправлено всі посилання в документації з `emergent.host` на `preview.emergentagent.com`
+- **URL Fix:** Виправлено всі посилання на Emergent — замінено на GitHub репо
 - **Affected files:** `docs/01_raspberry_pi_setup.md`, `docs/README.md`, `docs/00_QUICK_START.md`, `memory/PRD.md`, `scripts/setup_local_interface.sh`
 - **API Verified:** Ендпоінти `/api/scripts/download/install.sh` та `/api/firmware/download/zip` працюють коректно
 
@@ -99,10 +99,10 @@
 - **Tech Stack:** Kotlin, Jetpack Compose, Material 3, Retrofit, Room
 
 ## Preview URLs (актуальні)
-- **Web UI:** https://drone-return-home.preview.emergentagent.com
-- **API:** https://drone-return-home.preview.emergentagent.com/api
-- **Firmware Download:** https://drone-return-home.preview.emergentagent.com/api/firmware/download/zip
-- **Install Script:** https://drone-return-home.preview.emergentagent.com/api/scripts/download/install.sh
+- **Web UI:** https://github.com/iigar/Visual_Homing_System_Claude
+- **API:** https://github.com/iigar/Visual_Homing_System_Claude/api
+- **Firmware Download:** https://github.com/iigar/Visual_Homing_System_Claude/api/firmware/download/zip
+- **Install Script:** https://github.com/iigar/Visual_Homing_System_Claude/api/scripts/download/install.sh
 
 ## Команди запуску на Pi
 ```bash

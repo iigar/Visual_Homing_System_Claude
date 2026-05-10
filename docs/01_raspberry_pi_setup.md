@@ -189,7 +189,7 @@ ls -la /dev/serial*
 ```bash
 # Завантажити та запустити скрипт
 cd ~
-wget https://drone-return-home.preview.emergentagent.com/api/scripts/download/install.sh -O install.sh
+wget https://raw.githubusercontent.com/iigar/Visual_Homing_System_Claude/main/setup.sh -O setup.sh
 chmod +x install.sh
 ./install.sh
 ```
@@ -267,7 +267,7 @@ python3 -c "import flask; print(f'Flask: {flask.__version__}')"
 cd ~
 
 # Завантажити ZIP архів з прошивкою
-wget https://drone-return-home.preview.emergentagent.com/api/firmware/download/zip -O firmware.zip
+git clone https://github.com/iigar/Visual_Homing_System_Claude.git ~/visual-homing && cd ~/visual-homing && ./setup.sh
 unzip firmware.zip -d visual_homing
 cd visual_homing
 ```
