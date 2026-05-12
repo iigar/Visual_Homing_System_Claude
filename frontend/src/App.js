@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import { Map, FileText, Code, Info, History, Play, Square, RotateCcw, Plus, Trash2, Save, X, Plane, Download, Activity, Radio, ArrowDown, Navigation, Wifi, WifiOff, Target, Settings, Video, FileDown } from "lucide-react";
 import SimpleMap3D from "./components/SimpleMap3D";
