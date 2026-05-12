@@ -218,6 +218,7 @@ const RouteHistory = ({ routes, onSelect, onDelete, loading }) => {
 // Map Panel Component
 const MapPanel = ({ onSaveRoute, saveEnabled, setSaveEnabled, selectedRoute }) => {
   const [route, setRoute] = useState(null);
+  const initialRouteRef = useRef(selectedRoute);
 
   useEffect(() => {
     if (selectedRoute) setRoute(selectedRoute);
@@ -243,7 +244,15 @@ const MapPanel = ({ onSaveRoute, saveEnabled, setSaveEnabled, selectedRoute }) =
   };
 
   useEffect(() => {
-    loadDemoRoute();
+    if (initialRouteRef.current) {
+      setRoute(initialRouteRef.current);
+      setStats({
+        keyframes: initialRouteRef.current.keyframes?.length || 0,
+        distance: initialRouteRef.current.total_distance || 0
+      });
+    } else {
+      loadDemoRoute();
+    }
   }, []);
 
   const handleSaveRoute = async () => {
