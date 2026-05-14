@@ -4,34 +4,19 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group android:scaleX="0.5"
-        android:scaleY="0.5"
-        android:translateX="27"
-        android:translateY="27">
-        <!-- Drone body -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M54,30 L54,78 M30,54 L78,54"/>
-        <!-- Propellers -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M30,30 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0"/>
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M78,30 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0"/>
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M30,78 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0"/>
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M78,78 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0"/>
-        <!-- Center -->
-        <path
-            android:fillColor="#00BCD4"
-            android:pathData="M54,54 m-15,0 a15,15 0 1,0 30,0 a15,15 0 1,0 -30,0"/>
-        <!-- Home arrow -->
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M54,44 L62,54 L57,54 L57,64 L51,64 L51,54 L46,54 Z"/>
-    </group>
+    <path
+        android:fillColor="#00BCD4"
+        android:pathData="M54,30 L70,54 L54,78 L38,54 Z" />
+    <path
+        android:fillColor="#1A237E"
+        android:pathData="M30,30 m-8,-8 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0Z" />
+    <path
+        android:fillColor="#1A237E"
+        android:pathData="M78,30 m-8,-8 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0Z" />
+    <path
+        android:fillColor="#1A237E"
+        android:pathData="M30,78 m-8,-8 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0Z" />
+    <path
+        android:fillColor="#1A237E"
+        android:pathData="M78,78 m-8,-8 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0Z" />
 </vector>
