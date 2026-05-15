@@ -515,23 +515,28 @@ def video_feed():
     """MJPEG video stream"""
     def generate():
         while True:
-            if _system and _system.camera:
-                frame, info = _system.camera.get_frame()
-                if frame is not None:
-                    # Draw features if available
-                    if hasattr(_system, 'vo') and _system.vo._prev_features:
-                        frame = _system.vo.detector.draw_features(
-                            frame, _system.vo._prev_features
-                        )
-                    
-                    # Encode frame
-                    quality = _web_config.video_quality if _web_config else 50
-                    ret, jpeg = cv2.imencode('.jpg', frame, 
-                                            [cv2.IMWRITE_JPEG_QUALITY, quality])
-                    if ret:
-                        yield (b'--frame\r\n'
-                               b'Content-Type: image/jpeg\r\n\r\n' + 
-                               jpeg.tobytes() + b'\r\n')
+            try:
+                if _system and _system.camera:
+                    frame, info = _system.camera.get_frame()
+                    if frame is not None:
+                        # Draw features if available (safe)
+                        try:
+                            if hasattr(_system, 'vo') and _system.vo._prev_features:
+                                frame = _system.vo.detector.draw_features(
+                                    frame, _system.vo._prev_features
+                                )
+                        except Exception as e:
+                            logger.debug(f"draw_features skipped: {e}")
+
+                        quality = _web_config.video_quality if _web_config else 50
+                        ret, jpeg = cv2.imencode('.jpg', frame,
+                                                [cv2.IMWRITE_JPEG_QUALITY, quality])
+                        if ret:
+                            yield (b'--frame\r\n'
+                                   b'Content-Type: image/jpeg\r\n\r\n' +
+                                   jpeg.tobytes() + b'\r\n')
+            except Exception as e:
+                logger.error(f"video_feed error: {e}")
             time.sleep(0.05)  # ~20 FPS
     
     return Response(generate(), 
