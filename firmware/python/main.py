@@ -54,6 +54,7 @@ class VisualHomingSystem:
         # Current pose from visual odometry
         self._current_pose = Pose()
         self._current_altitude = 1.0
+        self._last_valid_pose_time: float = 0.0
     
     def _init_camera(self):
         """Initialize camera based on config"""
@@ -163,35 +164,38 @@ class VisualHomingSystem:
         
         if pose:
             self._current_pose = pose
-        
+            self._last_valid_pose_time = time.time()
+
         # State machine
         if self.state == SystemState.RECORDING:
             self._handle_recording(frame)
-            
+
         elif self.state == SystemState.RETURNING:
             self._handle_returning(frame)
-            
-        # Send visual data to ArduPilot - ALWAYS send position even without pose change
+
+        # Send visual data to ArduPilot only when tracking is fresh
+        vo_healthy = (time.time() - self._last_valid_pose_time) < 2.0
+
         if self.mavlink.is_connected:
-            # Always send current position
-            self.mavlink.send_vision_position(
-                x=self._current_pose.x,
-                y=self._current_pose.y,
-                z=self._current_altitude,
-                yaw=self._current_pose.yaw,
-                confidence=self._current_pose.confidence if hasattr(self._current_pose, 'confidence') else 0.95
-            )
-            
-            if velocity:
-                self.mavlink.send_vision_speed(
-                    vx=velocity.vx,
-                    vy=velocity.vy,
-                    vz=velocity.vz
+            if vo_healthy:
+                self.mavlink.send_vision_position(
+                    x=self._current_pose.x,
+                    y=self._current_pose.y,
+                    z=self._current_altitude,
+                    yaw=self._current_pose.yaw,
+                    confidence=self._current_pose.confidence if hasattr(self._current_pose, 'confidence') else 0.95
                 )
-            
+
+                if velocity:
+                    self.mavlink.send_vision_speed(
+                        vx=velocity.vx,
+                        vy=velocity.vy,
+                        vz=velocity.vz
+                    )
+
             # Debug log every 5 seconds
             if int(time.time()) % 5 == 0 and not hasattr(self, '_last_debug_time'):
-                logger.info(f"Sending VisOdom: x={self._current_pose.x:.2f}, y={self._current_pose.y:.2f}, z={self._current_altitude:.2f}, yaw={self._current_pose.yaw:.2f}, connected={self.mavlink.is_connected}")
+                logger.info(f"Sending VisOdom: x={self._current_pose.x:.2f}, y={self._current_pose.y:.2f}, z={self._current_altitude:.2f}, yaw={self._current_pose.yaw:.2f}, connected={self.mavlink.is_connected}, vo_healthy={vo_healthy}")
                 self._last_debug_time = time.time()
             elif int(time.time()) % 5 != 0:
                 if hasattr(self, '_last_debug_time'):
