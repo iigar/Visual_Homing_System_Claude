@@ -63,10 +63,14 @@ class ArduPilotInterface:
         self._vehicle_state = VehicleState()
         self._state_lock = threading.Lock()
         self._callbacks: Dict[str, list] = {}
-        
+
         # Store attitude separately for web interface
         self._attitude = {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}
         self._gps_satellites = 0
+
+        # Delta-from-arm altitude: baro MSL at arm time, None when disarmed
+        self._alt_home: Optional[float] = None
+        self._was_armed: bool = False
     
     def connect(self, timeout: float = 10.0) -> bool:
         """
@@ -206,7 +210,14 @@ class ArduPilotInterface:
         
         with self._state_lock:
             if msg_type == 'HEARTBEAT':
-                self._vehicle_state.armed = msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED
+                is_armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
+                if is_armed and not self._was_armed:
+                    self._alt_home = self._vehicle_state.altitude
+                    logger.info(f"Armed: home altitude = {self._alt_home:.2f}m MSL")
+                elif not is_armed:
+                    self._alt_home = None
+                self._was_armed = is_armed
+                self._vehicle_state.armed = is_armed
                 self._vehicle_state.mode = mavutil.mode_string_v10(msg)
                 
             elif msg_type == 'GLOBAL_POSITION_INT':
@@ -367,6 +378,9 @@ class ArduPilotInterface:
     
     @property
     def altitude(self) -> float:
-        """Get altitude above home/takeoff (meters) — from VFR_HUD."""
+        """AGL altitude in meters: VFR_HUD.alt minus baro reading at arm time.
+        Returns 0.0 when disarmed (alt_home not set yet)."""
         with self._state_lock:
-            return self._vehicle_state.altitude
+            if self._alt_home is not None:
+                return self._vehicle_state.altitude - self._alt_home
+            return 0.0
