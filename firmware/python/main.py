@@ -53,7 +53,7 @@ class VisualHomingSystem:
         
         # Current pose from visual odometry
         self._current_pose = Pose()
-        self._current_altitude = 1.0
+        self._current_altitude = 0.1
         self._last_valid_pose_time: float = 0.0
     
     def _init_camera(self):
@@ -155,8 +155,8 @@ class VisualHomingSystem:
         # Update altitude from MAVLink
         if self.mavlink.is_connected:
             self._current_altitude = self.mavlink.altitude
-            if self._current_altitude < 0.5:
-                self._current_altitude = 0.5  # minimum
+            if self._current_altitude < 0.1:
+                self._current_altitude = 0.1
         
         # Update visual odometry
         self.vo.set_altitude(self._current_altitude)
