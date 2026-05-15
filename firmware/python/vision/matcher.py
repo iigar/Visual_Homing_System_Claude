@@ -56,16 +56,14 @@ class FeatureMatcher:
     def _create_matcher(self):
         """Create feature matcher"""
         if self.use_flann:
-            # FLANN matcher (faster for large datasets)
-            index_params = dict(algorithm=6,  # FLANN_INDEX_LSH
-                              table_number=6,
-                              key_size=12,
-                              multi_probe_level=1)
+            index_params = dict(algorithm=6, table_number=6,
+                                key_size=12, multi_probe_level=1)
             search_params = dict(checks=50)
             return cv2.FlannBasedMatcher(index_params, search_params)
         else:
-            # BruteForce matcher (more accurate)
-            return cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
+            # crossCheck=True: mutual consistency — no ratio test needed,
+            # robust on repetitive/uniform surfaces
+            return cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
     
     def match(
         self,
@@ -91,21 +89,17 @@ class FeatureMatcher:
             if features1.descriptors is None or features2.descriptors is None:
                 return None
             
-            # KNN matching with k=2 for ratio test
-            raw_matches = self._matcher.knnMatch(
+            # crossCheck matcher: use match() not knnMatch()
+            raw_matches = self._matcher.match(
                 features1.descriptors,
-                features2.descriptors,
-                k=2
+                features2.descriptors
             )
-            
-            # Apply ratio test (Lowe's ratio test)
-            good_matches = []
-            for match_pair in raw_matches:
-                if len(match_pair) == 2:
-                    m, n = match_pair
-                    if m.distance < self.ratio_threshold * n.distance:
-                        if m.distance < self.match_threshold:
-                            good_matches.append(m)
+
+            # Sort by distance, apply absolute threshold
+            good_matches = sorted(
+                [m for m in raw_matches if m.distance < self.match_threshold],
+                key=lambda m: m.distance
+            )
             
             if len(good_matches) < self.min_matches:
                 logger.debug(f"Not enough matches: {len(good_matches)} < {self.min_matches}")
