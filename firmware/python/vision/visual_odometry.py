@@ -83,11 +83,11 @@ class VisualOdometry:
         self._prev_timestamp: float = 0.0
         self._pose = Pose()
         self._velocity = Velocity()
-        self._current_altitude: float = 1.0
+        self._current_altitude: float = 0.1
 
     def set_altitude(self, altitude: float):
         """Set current altitude (m) from barometer or rangefinder."""
-        self._current_altitude = max(0.5, altitude)
+        self._current_altitude = max(0.1, altitude)
 
     def process_frame(
         self,
