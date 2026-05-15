@@ -150,7 +150,7 @@ class VisualOdometry:
                 return None, None
 
             n_inliers = int(np.sum(inlier_mask)) if inlier_mask is not None else n_tracked
-            logger.info(f"LK: tracked={n_tracked}, inliers={n_inliers}")
+            logger.info(f"LK: tracked={n_tracked}, inliers={n_inliers}, tx={M[0,2]:.2f}px, ty={M[1,2]:.2f}px, alt={self._current_altitude:.4f}")
 
             if n_inliers < self._min_tracks // 2:
                 logger.info(f"LK: inliers={n_inliers} — too few, reset")
