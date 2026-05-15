@@ -101,25 +101,27 @@ class VisualOdometry:
             current_features = self.detector.detect(frame)
             
             if current_features is None or current_features.count < 10:
-                logger.debug("Not enough features detected")
-                # Reset so next good frame re-initializes cleanly
+                logger.info(f"VO: features={current_features.count if current_features else 0} — too few, reset")
                 self._prev_features = None
                 return None, None
 
             # First frame - just store
             if self._prev_features is None:
+                logger.info(f"VO: init frame, features={current_features.count}")
                 self._update_prev(frame, current_features, timestamp)
                 return None, None
-            
+
             # Match features with previous frame
             match_result = self.matcher.match(
                 self._prev_features,
                 current_features,
                 compute_homography=True
             )
-            
+
             if match_result is None or match_result.inlier_count < 8:
-                logger.debug("Not enough matches")
+                inliers = match_result.inlier_count if match_result else 0
+                good = match_result.count if match_result else 0
+                logger.info(f"VO: features={current_features.count}, good_matches={good}, inliers={inliers} — tracking lost")
                 self._update_prev(frame, current_features, timestamp)
                 return None, None
             
