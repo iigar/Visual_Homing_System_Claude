@@ -212,8 +212,9 @@ class ArduPilotInterface:
             elif msg_type == 'GLOBAL_POSITION_INT':
                 self._vehicle_state.lat = msg.lat / 1e7
                 self._vehicle_state.lon = msg.lon / 1e7
-                self._vehicle_state.altitude = msg.alt / 1000.0
-                self._vehicle_state.altitude_rel = msg.relative_alt / 1000.0
+                # altitude and altitude_rel NOT updated here — GLOBAL_POSITION_INT
+                # reports MSL altitude (~91m at ground) when there is no GPS fix.
+                # VFR_HUD.alt is used instead (altitude above home, correct for VO).
                 self._vehicle_state.heading = msg.hdg / 100.0
                 self._vehicle_state.timestamp = time.time()
                 
@@ -366,6 +367,6 @@ class ArduPilotInterface:
     
     @property
     def altitude(self) -> float:
-        """Get current altitude (meters)"""
+        """Get altitude above home/takeoff (meters) — from VFR_HUD."""
         with self._state_lock:
-            return self._vehicle_state.altitude_rel
+            return self._vehicle_state.altitude
