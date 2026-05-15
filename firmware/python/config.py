@@ -34,8 +34,8 @@ class CameraConfig:
     height: int = 576
     fps: int = 25
     # Pi Camera specific
-    pi_width: int = 1280
-    pi_height: int = 720
+    pi_width: int = 640
+    pi_height: int = 480
     pi_fps: int = 30
 
 
@@ -47,7 +47,7 @@ class VisionConfig:
     orb_nlevels: int = 8
     
     # Feature Matching
-    match_threshold: float = 30.0
+    match_threshold: float = 60.0
     min_matches: int = 10
     
     # Keyframe Settings

@@ -55,9 +55,10 @@ class VisualOdometry:
         
         # Default camera matrix (will be calibrated)
         if camera_matrix is None:
+            # Pi Camera v2 at 640×480
             self.camera_matrix = np.array([
-                [500, 0, 360],
-                [0, 500, 288],
+                [500, 0, 320],
+                [0, 500, 240],
                 [0, 0, 1]
             ], dtype=np.float32)
         else:
@@ -101,13 +102,14 @@ class VisualOdometry:
             
             if current_features is None or current_features.count < 10:
                 logger.debug("Not enough features detected")
-                self._update_prev(frame, current_features, timestamp)
+                # Reset so next good frame re-initializes cleanly
+                self._prev_features = None
                 return None, None
-            
+
             # First frame - just store
             if self._prev_features is None:
                 self._update_prev(frame, current_features, timestamp)
-                return self._pose, self._velocity
+                return None, None
             
             # Match features with previous frame
             match_result = self.matcher.match(

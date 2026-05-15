@@ -41,7 +41,7 @@ class FeatureMatcher:
     
     def __init__(
         self,
-        match_threshold: float = 30.0,
+        match_threshold: float = 60.0,
         ratio_threshold: float = 0.75,
         min_matches: int = 10,
         use_flann: bool = False
