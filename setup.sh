@@ -279,7 +279,7 @@ Type=simple
 User=$CURRENT_USER
 WorkingDirectory=$FIRMWARE_DIR
 Environment=PYTHONPATH=$VH_DIR
-ExecStart=$VENV_DIR/bin/python3 $FIRMWARE_DIR/main.py
+ExecStart=$VENV_DIR/bin/python3 $FIRMWARE_DIR/main.py --web
 Restart=always
 RestartSec=5
 StandardOutput=journal
