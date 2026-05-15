@@ -68,8 +68,9 @@ class ArduPilotInterface:
         self._attitude = {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}
         self._gps_satellites = 0
 
-        # Delta-from-arm altitude: baro MSL at arm time, None when disarmed
-        self._alt_home: Optional[float] = None
+        # Baro-based AGL altitude: use SCALED_PRESSURE (independent of EKF/vision feedback)
+        self._baro_press: float = 0.0      # current baro pressure hPa
+        self._baro_at_arm: float = 0.0     # baro pressure at arm time
         self._was_armed: bool = False
     
     def connect(self, timeout: float = 10.0) -> bool:
@@ -155,7 +156,16 @@ class ArduPilotInterface:
                 5,   # 5 Hz
                 1    # Start
             )
-            
+
+            # Request RAW_SENSORS stream (SCALED_PRESSURE — raw baro, EKF-independent)
+            self._connection.mav.request_data_stream_send(
+                self._connection.target_system,
+                self._connection.target_component,
+                mavutil.mavlink.MAV_DATA_STREAM_RAW_SENSORS,
+                2,   # 2 Hz sufficient for altitude
+                1    # Start
+            )
+
             logger.info("Requested data streams from FC")
         except Exception as e:
             logger.warning(f"Failed to request data streams: {e}")
@@ -212,13 +222,16 @@ class ArduPilotInterface:
             if msg_type == 'HEARTBEAT':
                 is_armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
                 if is_armed and not self._was_armed:
-                    self._alt_home = self._vehicle_state.altitude
-                    logger.info(f"Armed: home altitude = {self._alt_home:.2f}m MSL")
+                    self._baro_at_arm = self._baro_press
+                    logger.info(f"Armed: baro pressure = {self._baro_at_arm:.2f} hPa")
                 elif not is_armed:
-                    self._alt_home = None
+                    self._baro_at_arm = 0.0
                 self._was_armed = is_armed
                 self._vehicle_state.armed = is_armed
                 self._vehicle_state.mode = mavutil.mode_string_v10(msg)
+
+            elif msg_type == 'SCALED_PRESSURE':
+                self._baro_press = msg.press_abs
                 
             elif msg_type == 'GLOBAL_POSITION_INT':
                 self._vehicle_state.lat = msg.lat / 1e7
@@ -378,9 +391,10 @@ class ArduPilotInterface:
     
     @property
     def altitude(self) -> float:
-        """AGL altitude in meters: VFR_HUD.alt minus baro reading at arm time.
-        Returns 0.0 when disarmed (alt_home not set yet)."""
+        """AGL altitude from raw barometer (SCALED_PRESSURE), independent of EKF.
+        ΔP (hPa) ≈ 0.12 * Δh (m) — good enough for VO scale at low altitudes.
+        Returns 0.0 when disarmed or baro not yet received."""
         with self._state_lock:
-            if self._alt_home is not None:
-                return self._vehicle_state.altitude - self._alt_home
+            if self._baro_at_arm > 0 and self._baro_press > 0:
+                return (self._baro_at_arm - self._baro_press) / 0.12
             return 0.0
