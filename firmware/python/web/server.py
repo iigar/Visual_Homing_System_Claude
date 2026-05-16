@@ -521,9 +521,9 @@ def video_feed():
                     if frame is not None:
                         # Draw features if available (safe)
                         try:
-                            if hasattr(_system, 'vo') and _system.vo._prev_features:
+                            if hasattr(_system, 'vo') and hasattr(_system.vo, '_prev_pts') and _system.vo._prev_pts is not None:
                                 frame = _system.vo.detector.draw_features(
-                                    frame, _system.vo._prev_features
+                                    frame, _system.vo._prev_pts
                                 )
                         except Exception as e:
                             logger.debug(f"draw_features skipped: {e}")
@@ -663,7 +663,7 @@ def status_broadcast_loop():
                     'mavlink_connected': _system.mavlink.is_connected,
                     'gps_fix': getattr(_system.mavlink, '_gps_satellites', 0) if _system.mavlink.is_connected else 0,
                     'progress': _system.route_follower.progress if _system.route_follower.is_active else 0,
-                    'features': _system.vo._prev_features.count if _system.vo._prev_features else 0
+                    'features': len(_system.vo._prev_pts) if _system.vo._prev_pts is not None else 0
                 }
                 socketio.emit('status', status)
             except Exception as e:

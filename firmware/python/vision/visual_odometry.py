@@ -152,9 +152,14 @@ class VisualOdometry:
             n_inliers = int(np.sum(inlier_mask)) if inlier_mask is not None else n_tracked
             logger.info(f"LK: tracked={n_tracked}, inliers={n_inliers}, tx={M[0,2]:.2f}px, ty={M[1,2]:.2f}px, alt={self._current_altitude:.4f}")
 
-            if n_inliers < self._min_tracks // 2:
+            if n_inliers < self._min_tracks:
                 logger.info(f"LK: inliers={n_inliers} — too few, reset")
                 self._reset(gray, timestamp)
+                return None, None
+
+            # Reject implausibly large displacement (motor wash, takeoff chaos)
+            if (abs(M[0, 2]) > 50 or abs(M[1, 2]) > 50) and n_inliers < 25:
+                logger.debug(f"LK: large displacement rejected tx={M[0,2]:.1f} ty={M[1,2]:.1f} inliers={n_inliers}")
                 return None, None
 
             # Decompose partial affine: M = [[cosθ, -sinθ, tx], [sinθ, cosθ, ty]]
