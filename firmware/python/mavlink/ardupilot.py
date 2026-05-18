@@ -68,10 +68,12 @@ class ArduPilotInterface:
         self._attitude = {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}
         self._gps_satellites = 0
 
-        # Baro-based AGL altitude: use SCALED_PRESSURE (independent of EKF/vision feedback)
-        self._baro_press: float = 0.0      # current baro pressure hPa
-        self._baro_at_arm: float = 0.0     # baro pressure at arm time
+        self._baro_press: float = 0.0
+        self._baro_at_arm: float = 0.0
         self._was_armed: bool = False
+        # EKF-fused height from LOCAL_POSITION_NED (smoother than raw baro)
+        self._ned_z: float = 0.0
+        self._ned_z_valid: bool = False
     
     def connect(self, timeout: float = 10.0) -> bool:
         """
@@ -232,6 +234,10 @@ class ArduPilotInterface:
 
             elif msg_type == 'SCALED_PRESSURE':
                 self._baro_press = msg.press_abs
+
+            elif msg_type == 'LOCAL_POSITION_NED':
+                self._ned_z = msg.z      # NED: down is positive → height = -z
+                self._ned_z_valid = True
                 
             elif msg_type == 'GLOBAL_POSITION_INT':
                 self._vehicle_state.lat = msg.lat / 1e7
@@ -391,10 +397,11 @@ class ArduPilotInterface:
     
     @property
     def altitude(self) -> float:
-        """AGL altitude from raw barometer (SCALED_PRESSURE), independent of EKF.
-        ΔP (hPa) ≈ 0.12 * Δh (m) — good enough for VO scale at low altitudes.
-        Returns 0.0 when disarmed or baro not yet received."""
+        """AGL altitude: LOCAL_POSITION_NED.z (EKF-fused, motor-wash filtered).
+        Falls back to raw baro if EKF height not yet available."""
         with self._state_lock:
+            if self._ned_z_valid:
+                return max(0.0, -self._ned_z)  # NED z down → height = -z
             if self._baro_at_arm > 0 and self._baro_press > 0:
                 return (self._baro_at_arm - self._baro_press) / 0.12
             return 0.0
