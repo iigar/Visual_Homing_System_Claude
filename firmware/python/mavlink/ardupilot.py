@@ -72,6 +72,8 @@ class ArduPilotInterface:
         self._baro_press: float = 0.0      # current baro pressure hPa
         self._baro_at_arm: float = 0.0     # baro pressure at arm time
         self._was_armed: bool = False
+        self._ned_z: float = 0.0
+        self._ned_z_valid: bool = False
     
     def connect(self, timeout: float = 10.0) -> bool:
         """
@@ -229,6 +231,10 @@ class ArduPilotInterface:
                 self._was_armed = is_armed
                 self._vehicle_state.armed = is_armed
                 self._vehicle_state.mode = mavutil.mode_string_v10(msg)
+
+            elif msg_type == 'LOCAL_POSITION_NED':
+                  self._ned_z = msg.z
+                  self._ned_z_valid = True
 
             elif msg_type == 'SCALED_PRESSURE':
                 self._baro_press = msg.press_abs
@@ -391,10 +397,11 @@ class ArduPilotInterface:
     
     @property
     def altitude(self) -> float:
-        """AGL altitude from raw barometer (SCALED_PRESSURE), independent of EKF.
-        ΔP (hPa) ≈ 0.12 * Δh (m) — good enough for VO scale at low altitudes.
-        Returns 0.0 when disarmed or baro not yet received."""
+        """AGL altitude: LOCAL_POSITION_NED.z (EKF-fused, motor-wash filtered).
+        Falls back to raw baro if EKF height not yet available."""
         with self._state_lock:
+            if self._ned_z_valid:
+                return max(0.0, -self._ned_z)
             if self._baro_at_arm > 0 and self._baro_press > 0:
                 return (self._baro_at_arm - self._baro_press) / 0.12
             return 0.0
