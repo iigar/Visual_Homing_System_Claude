@@ -74,6 +74,8 @@ class ArduPilotInterface:
         # EKF-fused height from LOCAL_POSITION_NED (smoother than raw baro)
         self._ned_z: float = 0.0
         self._ned_z_valid: bool = False
+        self._ned_z_last_update: float = 0.0
+        self._NED_Z_TIMEOUT: float = 2.0  # seconds before fallback to baro
     
     def connect(self, timeout: float = 10.0) -> bool:
         """
@@ -238,6 +240,7 @@ class ArduPilotInterface:
             elif msg_type == 'LOCAL_POSITION_NED':
                 self._ned_z = msg.z      # NED: down is positive → height = -z
                 self._ned_z_valid = True
+                self._ned_z_last_update = time.time()
                 
             elif msg_type == 'GLOBAL_POSITION_INT':
                 self._vehicle_state.lat = msg.lat / 1e7
@@ -400,7 +403,8 @@ class ArduPilotInterface:
         """AGL altitude: LOCAL_POSITION_NED.z (EKF-fused, motor-wash filtered).
         Falls back to raw baro if EKF height not yet available."""
         with self._state_lock:
-            if self._ned_z_valid:
+            ned_fresh = self._ned_z_valid and (time.time() - self._ned_z_last_update) < self._NED_Z_TIMEOUT
+            if ned_fresh:
                 return max(0.0, -self._ned_z)  # NED z down → height = -z
             if self._baro_at_arm > 0 and self._baro_press > 0:
                 return (self._baro_at_arm - self._baro_press) / 0.12

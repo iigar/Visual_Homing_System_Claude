@@ -181,7 +181,7 @@ class VisualHomingSystem:
                 self.mavlink.send_vision_position(
                     x=self._current_pose.x,
                     y=self._current_pose.y,
-                    z=self._current_altitude,
+                    z=-self._current_altitude,
                     yaw=self._current_pose.yaw,
                     confidence=self._current_pose.confidence if hasattr(self._current_pose, 'confidence') else 0.95
                 )
