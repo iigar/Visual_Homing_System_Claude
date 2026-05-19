@@ -84,6 +84,8 @@ class VisualOdometry:
         self._pose = Pose()
         self._velocity = Velocity()
         self._current_altitude: float = 0.1
+        self._frame_count: int = 0
+        self._last_summary_time: float = 0.0
 
     def set_altitude(self, altitude: float):
         """Set current altitude (m) from barometer or rangefinder."""
@@ -150,7 +152,12 @@ class VisualOdometry:
                 return None, None
 
             n_inliers = int(np.sum(inlier_mask)) if inlier_mask is not None else n_tracked
-            logger.info(f"LK: tracked={n_tracked}, inliers={n_inliers}, tx={M[0,2]:.2f}px, ty={M[1,2]:.2f}px, alt={self._current_altitude:.4f}")
+            self._frame_count += 1
+            logger.debug(f"LK: tracked={n_tracked}, inliers={n_inliers}, tx={M[0,2]:.2f}px, ty={M[1,2]:.2f}px, alt={self._current_altitude:.4f}")
+            now = time.time()
+            if now - self._last_summary_time >= 1.0:
+                logger.info(f"LK: inliers={n_inliers}, tx={M[0,2]:.2f}px, ty={M[1,2]:.2f}px, alt={self._current_altitude:.2f}")
+                self._last_summary_time = now
 
             if n_inliers < self._min_tracks:
                 logger.info(f"LK: inliers={n_inliers} — too few, reset")
