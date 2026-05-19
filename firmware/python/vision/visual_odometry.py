@@ -65,7 +65,7 @@ class VisualOdometry:
 
         self._lk_params = dict(
             winSize=(21, 21),
-            maxLevel=3,
+            maxLevel=5,  # was 3 — flight produces 50-330px displacements, need ±336px range
             criteria=(cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 30, 0.01)
         )
         self._gftt_params = dict(
@@ -75,7 +75,7 @@ class VisualOdometry:
             blockSize=7
         )
         # Minimum live tracks to compute a valid pose estimate
-        self._min_tracks = 20
+        self._min_tracks = 10  # was 20 — flight often gives 16-19 inliers which is still valid
 
         # State
         self._prev_gray: Optional[np.ndarray] = None
