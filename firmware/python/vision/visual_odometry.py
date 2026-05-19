@@ -169,9 +169,12 @@ class VisualOdometry:
                 self._reset(gray, timestamp)
                 return None, None
 
-            # Reject implausibly large displacement (motor wash, takeoff chaos)
-            if (abs(M[0, 2]) > 50 or abs(M[1, 2]) > 50) and n_inliers < 25:
-                logger.debug(f"LK: large displacement rejected tx={M[0,2]:.1f} ty={M[1,2]:.1f} inliers={n_inliers}")
+            # Reject large per-frame flow — during cascade recovery, even frames with
+            # high inlier count can have large tx/ty that corrupt accumulated position.
+            # 40px at alt=1m,fx=500 ≈ 0.08m/frame; beyond this is implausible for LOITER.
+            if abs(M[0, 2]) > 40 or abs(M[1, 2]) > 40:
+                logger.info(f"LK: flow too large tx={M[0,2]:.1f} ty={M[1,2]:.1f} — reset")
+                self._reset(gray, timestamp)
                 return None, None
 
             # Decompose partial affine: M = [[cosθ, -sinθ, tx], [sinθ, cosθ, ty]]
