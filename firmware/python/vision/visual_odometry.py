@@ -205,10 +205,12 @@ class VisualOdometry:
             if self._consecutive_good >= self._REQUIRED_CONSECUTIVE:
                 self._is_tracking_stable = True
 
-            # Update integrated pose
-            self._pose.x += dx
-            self._pose.y += dy
-            self._pose.yaw += dyaw
+            # Only accumulate position when stable — during cascade recovery,
+            # frozen position is safer than noisy deltas corrupting EKF on gate re-open.
+            if self._is_tracking_stable:
+                self._pose.x += dx
+                self._pose.y += dy
+                self._pose.yaw += dyaw
             self._pose.z = self._current_altitude
             self._pose.timestamp = timestamp
             self._pose.confidence = n_inliers / n_tracked
