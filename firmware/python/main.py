@@ -173,8 +173,13 @@ class VisualHomingSystem:
         elif self.state == SystemState.RETURNING:
             self._handle_returning(frame)
 
-        # Send visual data to ArduPilot only when tracking is fresh
-        vo_healthy = (time.time() - self._last_valid_pose_time) < 2.0
+        # Send visual data to ArduPilot only when tracking is fresh AND stable
+        # Stability gate prevents brief 1-frame recoveries during reset cascade
+        # from sending noisy position jumps to the EKF
+        vo_healthy = (
+            (time.time() - self._last_valid_pose_time) < 2.0
+            and self.vo.is_tracking_stable
+        )
 
         if self.mavlink.is_connected:
             if vo_healthy:

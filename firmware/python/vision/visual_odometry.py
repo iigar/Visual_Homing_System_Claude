@@ -77,6 +77,11 @@ class VisualOdometry:
         # Minimum live tracks to compute a valid pose estimate
         self._min_tracks = 10  # was 20 — flight often gives 16-19 inliers which is still valid
 
+        # Stability gate: require N consecutive good frames before position is trusted
+        self._consecutive_good: int = 0
+        self._REQUIRED_CONSECUTIVE: int = 5
+        self._is_tracking_stable: bool = False
+
         # State
         self._prev_gray: Optional[np.ndarray] = None
         self._prev_pts: Optional[np.ndarray] = None
@@ -192,6 +197,11 @@ class VisualOdometry:
             if dt <= 0:
                 dt = 0.033
 
+            # Stability gate: require consecutive good frames before trusting position
+            self._consecutive_good += 1
+            if self._consecutive_good >= self._REQUIRED_CONSECUTIVE:
+                self._is_tracking_stable = True
+
             # Update integrated pose
             self._pose.x += dx
             self._pose.y += dy
@@ -225,6 +235,8 @@ class VisualOdometry:
 
     def _reset(self, gray: np.ndarray, timestamp: float):
         """Re-initialize tracking from current frame."""
+        self._consecutive_good = 0
+        self._is_tracking_stable = False
         pts = cv2.goodFeaturesToTrack(gray, **self._gftt_params)
         if pts is not None and len(pts) >= self._min_tracks:
             self._prev_gray = gray
@@ -249,3 +261,7 @@ class VisualOdometry:
     @property
     def velocity(self) -> Velocity:
         return self._velocity
+
+    @property
+    def is_tracking_stable(self) -> bool:
+        return self._is_tracking_stable
