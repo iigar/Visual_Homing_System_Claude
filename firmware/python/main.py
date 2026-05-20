@@ -56,6 +56,9 @@ class VisualHomingSystem:
         self._current_altitude = 0.1
         self._last_valid_pose_time: float = 0.0
         self._prev_vo_healthy: bool = False
+        # Last position actually sent to EKF — used for resync on VO recovery
+        self._last_sent_x: float = 0.0
+        self._last_sent_y: float = 0.0
     
     def _init_camera(self):
         """Initialize camera based on config"""
@@ -182,15 +185,12 @@ class VisualHomingSystem:
             and self.vo.is_tracking_stable
         )
 
-        # On VO recovery: sync position to EKF to prevent position jump → correction spiral
+        # On VO recovery: sync VO position to last position sent to EKF.
+        # Prevents jump between what EKF knows and what VO accumulated during failure.
+        # Uses own sent-position tracking — no dependency on LOCAL_POSITION_NED.
         if not self._prev_vo_healthy and vo_healthy and self.mavlink.is_connected:
-            ekf_x = self.mavlink.ned_x
-            ekf_y = self.mavlink.ned_y
-            if ekf_x is not None and ekf_y is not None:
-                self.vo.set_position(ekf_x, ekf_y)
-                logger.info(f"VO recovery: resynced to EKF x={ekf_x:.2f}, y={ekf_y:.2f}")
-            else:
-                logger.warning(f"VO recovery: LOCAL_POSITION_NED not available — skipping resync")
+            self.vo.set_position(self._last_sent_x, self._last_sent_y)
+            logger.info(f"VO recovery: resynced to last sent x={self._last_sent_x:.2f}, y={self._last_sent_y:.2f}")
         self._prev_vo_healthy = vo_healthy
 
         if self.mavlink.is_connected:
@@ -202,6 +202,8 @@ class VisualHomingSystem:
                     yaw=self._current_pose.yaw,
                     confidence=self._current_pose.confidence if hasattr(self._current_pose, 'confidence') else 0.95
                 )
+                self._last_sent_x = self._current_pose.x
+                self._last_sent_y = self._current_pose.y
 
                 if velocity:
                     self.mavlink.send_vision_speed(
