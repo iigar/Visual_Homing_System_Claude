@@ -254,7 +254,9 @@ class ArduPilotInterface:
                 self._vehicle_state.mode = mavutil.mode_string_v10(msg)
 
             elif msg_type == 'SCALED_PRESSURE':
-                self._baro_press = msg.press_abs
+                raw = msg.press_abs
+                # EMA filter — reduces prop-wash noise without lag at 2 Hz update rate
+                self._baro_press = 0.3 * raw + 0.7 * self._baro_press if self._baro_press > 0 else raw
 
             elif msg_type == 'LOCAL_POSITION_NED':
                 if not self._ned_xy_valid:
