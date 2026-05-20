@@ -216,7 +216,11 @@ class ArduPilotInterface:
                     self._process_message(msg)
                     
             except Exception as e:
-                logger.error(f"Receive error: {e}")
+                if not hasattr(self, '_recv_err_count'):
+                    self._recv_err_count = 0
+                self._recv_err_count += 1
+                if self._recv_err_count <= 3 or self._recv_err_count % 100 == 0:
+                    logger.error(f"Receive error #{self._recv_err_count}: {e}")
                 time.sleep(0.1)
     
     def _heartbeat_loop(self):
@@ -253,6 +257,8 @@ class ArduPilotInterface:
                 self._baro_press = msg.press_abs
 
             elif msg_type == 'LOCAL_POSITION_NED':
+                if not self._ned_xy_valid:
+                    logger.info(f"LOCAL_POSITION_NED first received: x={msg.x:.2f}, y={msg.y:.2f}, z={msg.z:.2f}")
                 self._ned_z = msg.z      # NED: down is positive → height = -z
                 self._ned_x = msg.x      # NED north
                 self._ned_y = msg.y      # NED east
