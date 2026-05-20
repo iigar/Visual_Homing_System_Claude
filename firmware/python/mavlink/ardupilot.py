@@ -173,6 +173,18 @@ class ArduPilotInterface:
                 1    # Start
             )
 
+            # LOCAL_POSITION_NED (msg_id=32) is not in any MAV_DATA_STREAM group.
+            # Must be requested explicitly via SET_MESSAGE_INTERVAL.
+            self._connection.mav.command_long_send(
+                self._connection.target_system,
+                self._connection.target_component,
+                mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,
+                0,
+                32,       # LOCAL_POSITION_NED
+                200000,   # 5 Hz = 200000 μs
+                0, 0, 0, 0, 0
+            )
+
             logger.info("Requested data streams from FC")
         except Exception as e:
             logger.warning(f"Failed to request data streams: {e}")
