@@ -189,6 +189,8 @@ class VisualHomingSystem:
             if ekf_x is not None and ekf_y is not None:
                 self.vo.set_position(ekf_x, ekf_y)
                 logger.info(f"VO recovery: resynced to EKF x={ekf_x:.2f}, y={ekf_y:.2f}")
+            else:
+                logger.warning(f"VO recovery: LOCAL_POSITION_NED not available — skipping resync")
         self._prev_vo_healthy = vo_healthy
 
         if self.mavlink.is_connected:
