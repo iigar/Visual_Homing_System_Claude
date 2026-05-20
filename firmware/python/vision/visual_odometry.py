@@ -82,6 +82,13 @@ class VisualOdometry:
         self._REQUIRED_CONSECUTIVE: int = 5
         self._is_tracking_stable: bool = False
 
+        # Frozen position: last known good position when stability was last lost
+        # _reset() always restores to these — prevents brief false recoveries from
+        # accumulating bad deltas that would corrupt EKF on next real recovery
+        self._frozen_x: float = 0.0
+        self._frozen_y: float = 0.0
+        self._frozen_yaw: float = 0.0
+
         # State
         self._prev_gray: Optional[np.ndarray] = None
         self._prev_pts: Optional[np.ndarray] = None
@@ -240,6 +247,17 @@ class VisualOdometry:
 
     def _reset(self, gray: np.ndarray, timestamp: float):
         """Re-initialize tracking from current frame."""
+        if self._is_tracking_stable:
+            # Save position only on the first loss of stability — subsequent resets
+            # during the same cascade must not overwrite with bad intermediate values
+            self._frozen_x = self._pose.x
+            self._frozen_y = self._pose.y
+            self._frozen_yaw = self._pose.yaw
+        # Always restore to frozen — brief false recoveries (1-4 frames) may have
+        # accumulated deltas from the wrong reference frame; discard them
+        self._pose.x = self._frozen_x
+        self._pose.y = self._frozen_y
+        self._pose.yaw = self._frozen_yaw
         self._consecutive_good = 0
         self._is_tracking_stable = False
         pts = cv2.goodFeaturesToTrack(gray, **self._gftt_params)
@@ -251,6 +269,13 @@ class VisualOdometry:
             self._prev_gray = None
             self._prev_pts = None
 
+    def set_position(self, x: float, y: float):
+        """Resync absolute position to EKF on VO recovery — prevents position jump."""
+        self._pose.x = x
+        self._pose.y = y
+        self._frozen_x = x
+        self._frozen_y = y
+
     def reset(self):
         """Reset full odometry state (position + tracking)."""
         self._prev_gray = None
@@ -258,6 +283,9 @@ class VisualOdometry:
         self._prev_timestamp = 0.0
         self._pose = Pose()
         self._velocity = Velocity()
+        self._frozen_x = 0.0
+        self._frozen_y = 0.0
+        self._frozen_yaw = 0.0
 
     @property
     def pose(self) -> Pose:

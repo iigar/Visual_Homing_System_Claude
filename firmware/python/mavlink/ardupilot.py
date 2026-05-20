@@ -71,9 +71,12 @@ class ArduPilotInterface:
         self._baro_press: float = 0.0
         self._baro_at_arm: float = 0.0
         self._was_armed: bool = False
-        # EKF-fused height from LOCAL_POSITION_NED (smoother than raw baro)
+        # EKF-fused position from LOCAL_POSITION_NED
         self._ned_z: float = 0.0
+        self._ned_x: float = 0.0
+        self._ned_y: float = 0.0
         self._ned_z_valid: bool = False
+        self._ned_xy_valid: bool = False
         self._ned_z_last_update: float = 0.0
         self._NED_Z_TIMEOUT: float = 2.0  # seconds before fallback to baro
     
@@ -239,7 +242,10 @@ class ArduPilotInterface:
 
             elif msg_type == 'LOCAL_POSITION_NED':
                 self._ned_z = msg.z      # NED: down is positive → height = -z
+                self._ned_x = msg.x      # NED north
+                self._ned_y = msg.y      # NED east
                 self._ned_z_valid = True
+                self._ned_xy_valid = True
                 self._ned_z_last_update = time.time()
                 
             elif msg_type == 'GLOBAL_POSITION_INT':
@@ -398,6 +404,18 @@ class ArduPilotInterface:
     def is_connected(self) -> bool:
         return self._connected
     
+    @property
+    def ned_x(self) -> Optional[float]:
+        """EKF north position (m). None until first LOCAL_POSITION_NED received."""
+        with self._state_lock:
+            return self._ned_x if self._ned_xy_valid else None
+
+    @property
+    def ned_y(self) -> Optional[float]:
+        """EKF east position (m). None until first LOCAL_POSITION_NED received."""
+        with self._state_lock:
+            return self._ned_y if self._ned_xy_valid else None
+
     @property
     def altitude(self) -> float:
         """AGL altitude: LOCAL_POSITION_NED.z (EKF-fused, motor-wash filtered).

@@ -55,6 +55,7 @@ class VisualHomingSystem:
         self._current_pose = Pose()
         self._current_altitude = 0.1
         self._last_valid_pose_time: float = 0.0
+        self._prev_vo_healthy: bool = False
     
     def _init_camera(self):
         """Initialize camera based on config"""
@@ -180,6 +181,15 @@ class VisualHomingSystem:
             (time.time() - self._last_valid_pose_time) < 2.0
             and self.vo.is_tracking_stable
         )
+
+        # On VO recovery: sync position to EKF to prevent position jump → correction spiral
+        if not self._prev_vo_healthy and vo_healthy and self.mavlink.is_connected:
+            ekf_x = self.mavlink.ned_x
+            ekf_y = self.mavlink.ned_y
+            if ekf_x is not None and ekf_y is not None:
+                self.vo.set_position(ekf_x, ekf_y)
+                logger.info(f"VO recovery: resynced to EKF x={ekf_x:.2f}, y={ekf_y:.2f}")
+        self._prev_vo_healthy = vo_healthy
 
         if self.mavlink.is_connected:
             if vo_healthy:
