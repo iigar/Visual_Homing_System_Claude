@@ -443,12 +443,14 @@ class ArduPilotInterface:
 
     @property
     def altitude(self) -> float:
-        """AGL altitude: LOCAL_POSITION_NED.z (EKF-fused, motor-wash filtered).
-        Falls back to raw baro if EKF height not yet available."""
+        """AGL altitude above home. Priority: LOCAL_POSITION_NED → VFR_HUD → raw baro."""
         with self._state_lock:
             ned_fresh = self._ned_z_valid and (time.time() - self._ned_z_last_update) < self._NED_Z_TIMEOUT
             if ned_fresh:
-                return max(0.0, -self._ned_z)  # NED z down → height = -z
+                return max(0.0, -self._ned_z)
+            # VFR_HUD.alt = ArduPilot's EKF-fused altitude above home (same as used for AltHold)
+            if self._vehicle_state.altitude > 0.05:
+                return self._vehicle_state.altitude
             if self._baro_at_arm > 0 and self._baro_press > 0:
                 return (self._baro_at_arm - self._baro_press) / 0.12
-            return 0.0
+            return 0.1

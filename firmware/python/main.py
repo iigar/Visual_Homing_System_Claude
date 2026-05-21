@@ -60,6 +60,7 @@ class VisualHomingSystem:
         self._last_sent_x: float = 0.0
         self._last_sent_y: float = 0.0
         self._vision_reset_counter: int = 0
+        self._vo_unhealthy_since: float = 0.0
     
     def _init_camera(self):
         """Initialize camera based on config"""
@@ -189,9 +190,12 @@ class VisualHomingSystem:
         # On VO recovery: sync VO position to last position sent to EKF.
         # Prevents jump between what EKF knows and what VO accumulated during failure.
         # Uses own sent-position tracking — no dependency on LOCAL_POSITION_NED.
+        if self._prev_vo_healthy and not vo_healthy:
+            self._vo_unhealthy_since = time.time()
         if not self._prev_vo_healthy and vo_healthy and self.mavlink.is_connected:
             self.vo.set_position(self._last_sent_x, self._last_sent_y)
-            self._vision_reset_counter = (self._vision_reset_counter + 1) % 256
+            if time.time() - self._vo_unhealthy_since > 1.0:
+                self._vision_reset_counter = (self._vision_reset_counter + 1) % 256
             logger.info(f"VO recovery: resynced to last sent x={self._last_sent_x:.2f}, y={self._last_sent_y:.2f}, reset_counter={self._vision_reset_counter}")
         self._prev_vo_healthy = vo_healthy
 
