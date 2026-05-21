@@ -158,11 +158,11 @@ class VisualHomingSystem:
         Callback for each camera frame
         Main processing loop
         """
-        # Update altitude from MAVLink
+        # Update altitude from MAVLink — strong EMA to keep VO scale stable
         if self.mavlink.is_connected:
-            self._current_altitude = self.mavlink.altitude
-            if self._current_altitude < 0.1:
-                self._current_altitude = 0.1
+            raw_alt = self.mavlink.altitude
+            if raw_alt >= 0.1:
+                self._current_altitude = 0.05 * raw_alt + 0.95 * self._current_altitude
         
         # Update visual odometry
         self.vo.set_altitude(self._current_altitude)
