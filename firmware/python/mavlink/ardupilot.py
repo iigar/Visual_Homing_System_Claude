@@ -314,16 +314,18 @@ class ArduPilotInterface:
         roll: float = 0.0,
         pitch: float = 0.0,
         yaw: float = 0.0,
-        confidence: float = 0.95
+        confidence: float = 0.95,
+        reset_counter: int = 0
     ):
         """
         Send vision position estimate to ArduPilot
         Uses VISION_POSITION_ESTIMATE message
-        
+
         Args:
             x, y, z: Position in NED frame (meters)
             roll, pitch, yaw: Attitude (radians)
             confidence: Confidence level (0-1)
+            reset_counter: Increment on VO resync so EKF accepts new position
         """
         if not self._connected:
             return
@@ -333,10 +335,13 @@ class ArduPilotInterface:
             # Parameters: usec, x, y, z, roll, pitch, yaw
             # Note: covariance and reset_counter are optional in MAVLink v2
             # and may not be supported by all pymavlink versions
+            covariance = [0.0] * 21
             self._connection.mav.vision_position_estimate_send(
                 int(time.time() * 1e6),  # usec timestamp
                 x, y, z,
-                roll, pitch, yaw
+                roll, pitch, yaw,
+                covariance,
+                reset_counter
             )
             
         except Exception as e:
